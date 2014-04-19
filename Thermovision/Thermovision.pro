@@ -15,12 +15,12 @@ include(Model/Model.pri)
 include(Controller/Controller.pri)
 include(View/View.pri)
 include(Interface/Interface.pri)
-include(Globals/Globals.pri)
 
 SOURCES += \
-    main.cpp
+	main.cpp
 
-HEADERS  +=
+HEADERS  += \
+	logdebug.h
 
 FORMS    +=
 
@@ -29,4 +29,4 @@ OTHER_FILES += \
 	View/View.pri \
 	Controller/Controller.pri \
 	Interface/Interface.pri \
-	Globals/Globals.pri
+	Globals/zGlobals.pri

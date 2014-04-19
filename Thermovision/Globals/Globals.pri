@@ -1,2 +1,0 @@
-HEADERS += \
-    Globals/logdebug.h

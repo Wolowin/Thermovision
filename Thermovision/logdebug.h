@@ -1,5 +1,5 @@
-#ifndef LOG_DEBUG_H
-#define LOG_DEBUG_H
+#ifndef LOGDEBUG_H
+#define LOGDEBUG_H
 
 #define DEBUG_BUILD   //comment if release
 
@@ -13,4 +13,4 @@ using namespace std;
 #define LogDebug(msg)
 #endif
 
-#endif // LOG_DEBUG_H
+#endif // LOGDEBUG_H
