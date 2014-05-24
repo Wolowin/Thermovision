@@ -1,0 +1,2 @@
+SOURCES += \
+    Tests/test.cpp
