@@ -9,20 +9,16 @@
 #include <boost/shared_ptr.hpp>
 #include <boost/scoped_ptr.hpp>
 
-
-#include <qpa/qplatformnativeinterface.h>
-
-
 class thermo_camera_model : public abstract_thermo_camera_model
 {
 public:
 	thermo_camera_model();
 	virtual ~thermo_camera_model();
 
-	char* raw_image_data_pointer;
+	virtual char* get_data_pointer();
+	virtual void image_capture();
 
-void qwe();
-void GetMaxImageSize();
+	virtual void run_calibration(calibration_parameters the_parameters);
 private:
 	void get_connected_cameras_infos();
 	void alloc_mem_for_camera_list();
@@ -31,7 +27,8 @@ private:
 	void initialize_camera();
 	void check_if_firmware_update_needed(INT nRet);
 	void allocate_memory_for_image();
-	INT convert_to_bits_per_pixel(char color_mode);
+
+	void GetMaxImageSize();
 
 	static const HIDS starting_camera_handle = 0;
 	HIDS operating_camera_handle;
@@ -40,11 +37,13 @@ private:
 	boost::scoped_ptr<SENSORINFO> sensor_info_ptr;
 
 	int image_memory_id;
-
+	char* raw_image_data_pointer;
 	INT		m_nSizeX;		// width of video
 	INT		m_nSizeY;		// height of video
-	INT		m_nColorMode;	// Y8/RGB16/RGB24/REG32
-	INT		m_nBitsPerPixel;// number of bits needed store one pixel
+	INT		color_mode;	// Y8/RGB16/RGB24/REG32
+	INT		bits_per_pixel;// number of bits needed store one pixel
+
+
 };
 
 

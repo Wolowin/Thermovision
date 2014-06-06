@@ -1,3 +1,5 @@
-HEADERS +=
+HEADERS += \
+    Controller/qt_thermo_vision_controller.h
 
-SOURCES +=
+SOURCES += \
+    Controller/qt_thermo_vision_controller.cpp

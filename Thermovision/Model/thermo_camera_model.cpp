@@ -1,6 +1,6 @@
 #include "thermo_camera_model.h"
 #include "../log.h"
-
+#include <QDomDocument>
 
 
 
@@ -12,26 +12,18 @@ thermo_camera_model::thermo_camera_model():
 	initialize_camera();
 	get_sensor_infos();
 	// setup the color depth to the current windows setting
-	is_GetColorDepth (operating_camera_handle, &m_nBitsPerPixel, &m_nColorMode);
-	is_SetColorMode (operating_camera_handle, m_nColorMode);
+	is_GetColorDepth (operating_camera_handle, &bits_per_pixel, &color_mode);
+	is_SetColorMode (operating_camera_handle, color_mode);
 
 	// Check if the camera supports an arbitrary AOI
 	// Only the ueye xs does not support an arbitrary AOI
 	GetMaxImageSize();
 
-//	double nCaps = 0;
-//	INT nRet = is_Exposure(operating_camera_handle, IS_EXPOSURE_CMD_GET_EXPOSURE, &nCaps, sizeof(nCaps));
-//	cout << "nCaps: " << nCaps << endl;
-//cout << "nRet: " << (int)nRet << endl;
-//	nCaps = 100;
-//	cout << "nCaps: " << nCaps << endl;
-//	 nRet = is_Exposure(operating_camera_handle, IS_EXPOSURE_CMD_SET_EXPOSURE, &nCaps, sizeof(nCaps));
-//	cout << "nCaps: " << nCaps << endl;
-//	cout << "nRet: " << (int)nRet << endl;
-
-//	 nRet = is_Exposure(operating_camera_handle, IS_EXPOSURE_CMD_GET_EXPOSURE, &nCaps, sizeof(nCaps));
-//	cout << "nCaps: " << nCaps << endl;
-//	cout << "nRet: " << (int)nRet << endl;
+	Sleep(3000);
+	allocate_memory_for_image();
+	is_SetDisplayMode (operating_camera_handle, IS_SET_DM_DIB);
+	is_SetImageMem (operating_camera_handle, raw_image_data_pointer, image_memory_id);
+	log_debug("Camera preparations finished!");
 }
 
 thermo_camera_model::~thermo_camera_model()
@@ -49,6 +41,11 @@ thermo_camera_model::~thermo_camera_model()
 	}
 }
 
+char *thermo_camera_model::get_data_pointer()
+{
+	return reinterpret_cast<char*>(raw_image_data_pointer);
+}
+
 void thermo_camera_model::get_connected_cameras_infos()
 {
 	if( is_GetNumberOfCameras( &number_of_cameras ) == IS_SUCCESS) {
@@ -61,30 +58,64 @@ void thermo_camera_model::get_connected_cameras_infos()
 	}
 }
 
-void thermo_camera_model::qwe()
+void thermo_camera_model::alloc_mem_for_camera_list()
 {
+	boost::shared_ptr<UEYE_CAMERA_LIST> tmp(
+				(UEYE_CAMERA_LIST*) new BYTE [sizeof (DWORD) + number_of_cameras * sizeof (UEYE_CAMERA_INFO)],
+			camera_list_deleter());
+	camera_list_ptr = tmp;
+}
 
-Sleep(3000);
-allocate_memory_for_image();
-	is_SetDisplayMode (operating_camera_handle, IS_SET_DM_DIB);
+void thermo_camera_model::get_camera_list()
+{
+	if (is_GetCameraList(camera_list_ptr.get()) != IS_SUCCESS) {
+		log_error("Failed to GetCameraList");
+	} else {
+		log_debug("Camera list received succesfully");
+	}
+}
 
-	is_SetImageMem (operating_camera_handle, raw_image_data_pointer, image_memory_id);
+void thermo_camera_model::initialize_camera()
+{
+	INT nRet = is_InitCamera (&operating_camera_handle, NULL);
+	if (nRet != IS_SUCCESS) {
+		check_if_firmware_update_needed(nRet);
+	} else {
+		log_debug("Camera is initialized");
+	}
+}
 
-	is_CaptureVideo(operating_camera_handle, IS_WAIT);
-	log_debug("Rendering image");
-//	is_RenderBitmap (operating_camera_handle, image_memory_id, test, IS_RENDER_FIT_TO_WINDOW);
-//	log_debug("Image Rendered");
+void thermo_camera_model::check_if_firmware_update_needed(INT nRet)
+{
+	//Check if GigE uEye SE needs a new starter firmware
+	if (nRet == IS_STARTER_FW_UPLOAD_NEEDED)
+	{
+		//Calculate time needed for updating the starter firmware
+		INT nTime;
+		is_GetDuration (operating_camera_handle, IS_SE_STARTER_FW_UPLOAD, &nTime);
+		/*
+	   e.g. have progress bar displayed in separate thread
+	  */
 
-//	is_SetImageMem (operating_camera_handle, raw_image_data_pointer, image_memory_id);
-//	is_FreezeVideo(operating_camera_handle, IS_WAIT);
-//	log_debug("Rendering image2");
-//	is_RenderBitmap (operating_camera_handle, image_memory_id, test, IS_RENDER_FIT_TO_WINDOW);
-//	log_debug("Image Rendered2");
+		//Upload new starter firmware during initialization
+		operating_camera_handle =  operating_camera_handle | IS_ALLOW_STARTER_FW_UPLOAD;
+		nRet = is_InitCamera (&operating_camera_handle, NULL);
 
-//	auto_status = is_GetAutoInfo ( operating_camera_handle,  &auto_inf);
-//	cout << "auto_status: " << auto_status << endl;
-//cout << "auto_infAutoAbility.: " << std::hex<< auto_inf.AutoAbility  << endl;
-//cout << "auto_inf.sBrightCtrlStatus.curController : "  << std::hex<<auto_inf.sBrightCtrlStatus.curController << endl;
+		/*
+		end progress bar
+	   */
+	} else {
+		log_error("Cant initialize camera");
+	}
+}
+
+void thermo_camera_model::get_sensor_infos()
+{
+	if (is_GetSensorInfo(operating_camera_handle, sensor_info_ptr.get()) != IS_SUCCESS){
+		log_error("Failed to read sensor info");
+	} else {
+		log_debug("Sensor info read properly");
+	}
 }
 
 void thermo_camera_model::GetMaxImageSize()
@@ -118,71 +149,12 @@ void thermo_camera_model::GetMaxImageSize()
 	}
 }
 
-void thermo_camera_model::alloc_mem_for_camera_list()
-{
-	boost::shared_ptr<UEYE_CAMERA_LIST> tmp(
-				(UEYE_CAMERA_LIST*) new BYTE [sizeof (DWORD) + number_of_cameras * sizeof (UEYE_CAMERA_INFO)],
-			camera_list_deleter());
-	camera_list_ptr = tmp;
-}
-
-void thermo_camera_model::get_camera_list()
-{
-	if (is_GetCameraList(camera_list_ptr.get()) != IS_SUCCESS) {
-		log_error("Failed to GetCameraList");
-	} else {
-		log_debug("Camera list received succesfully");
-	}
-}
-
-void thermo_camera_model::get_sensor_infos()
-{
-	if (is_GetSensorInfo(operating_camera_handle, sensor_info_ptr.get()) != IS_SUCCESS){
-		log_error("Failed to read sensor info");
-	} else {
-		log_debug("Sensor info read properly");
-	}
-}
-
-void thermo_camera_model::initialize_camera()
-{
-	INT nRet = is_InitCamera (&operating_camera_handle, NULL);
-	if (nRet != IS_SUCCESS) {
-		check_if_firmware_update_needed(nRet);
-	} else {
-		log_debug("Camera is initialized");
-	}
-}
-void thermo_camera_model::check_if_firmware_update_needed(INT nRet)
-{
-	//Check if GigE uEye SE needs a new starter firmware
-	if (nRet == IS_STARTER_FW_UPLOAD_NEEDED)
-	{
-		//Calculate time needed for updating the starter firmware
-		INT nTime;
-		is_GetDuration (operating_camera_handle, IS_SE_STARTER_FW_UPLOAD, &nTime);
-		/*
-	   e.g. have progress bar displayed in separate thread
-	  */
-
-		//Upload new starter firmware during initialization
-		operating_camera_handle =  operating_camera_handle | IS_ALLOW_STARTER_FW_UPLOAD;
-		nRet = is_InitCamera (&operating_camera_handle, NULL);
-
-		/*
-		end progress bar
-	   */
-	} else {
-		log_error("Cant initialize camera");
-	}
-}
-
 void thermo_camera_model::allocate_memory_for_image()
 {
 	if (is_AllocImageMem(operating_camera_handle,
 					 m_nSizeX,
 					 m_nSizeY,
-					 m_nBitsPerPixel,
+					 bits_per_pixel,
 					 &raw_image_data_pointer,
 					 &image_memory_id) != IS_SUCCESS){
 		log_error("Failed to allocate memory for image");
@@ -191,16 +163,53 @@ void thermo_camera_model::allocate_memory_for_image()
 	}
 }
 
-INT thermo_camera_model::convert_to_bits_per_pixel(char color_mode)
+void thermo_camera_model::image_capture()
 {
-	if (sensor_info_ptr->nColorMode == color_mode)
-		return 8;
-	if (sensor_info_ptr->nColorMode == color_mode)
-		return 24;
-	if (sensor_info_ptr->nColorMode == color_mode)
-		return 24;
-	if (sensor_info_ptr->nColorMode == color_mode)
-		return 24;
-	if (sensor_info_ptr->nColorMode == color_mode)
-		log_error("Sensors ColorMode Invalid");
+	is_CaptureVideo(operating_camera_handle, IS_WAIT);
+	log_debug("Capturing image");
+}
+
+void thermo_camera_model::run_calibration(calibration_parameters the_parameters)
+{
+
+	// przebieg kalibracji
+
+	QDomDocument document("Calibration profiles");
+
+		QDomElement first_profile = document.createElement( "profile_one" );
+		first_profile.setAttribute( "name", "spawanie" );
+		QDomElement two_profile = document.createElement( "profile_two" );
+		two_profile.setAttribute( "name", "lutowanie" );
+		QDomElement three_profile = document.createElement( "profile_three" );
+		three_profile.setAttribute( "name", "hartowanie" );
+
+
+		QDomElement first_parameters = document.createElement( "Parameters" );
+		first_parameters.setAttribute( "Camera_model", "some_model" );
+		first_parameters.setAttribute( "Filter_model", "some_filter_model" );
+		first_parameters.setAttribute( "jjytun", "wqer" );
+		first_parameters.setAttribute( "untrnu", "dsa" );
+		first_parameters.setAttribute( "ytitr", "gsdadel" );
+		first_parameters.setAttribute( "uyloyumodel", "somhdhfddel" );
+		first_parameters.setAttribute( "iyhu", "somejfdodel" );
+
+		QDomText first_text = document.createTextNode( "profile description" );
+
+		document.appendChild( first_profile );
+		document.appendChild( two_profile );
+		document.appendChild( three_profile );
+
+		first_profile.appendChild( first_parameters );
+		first_profile.appendChild( first_text );
+
+
+		QFile file( "simple.xml" );
+		if( !file.open( QIODevice::WriteOnly | QIODevice::Text ) )
+		{
+		qDebug( "Failed to open file for writing." );
+		return;
+		}
+		QTextStream stream( &file );
+		stream << document.toString();
+		file.close();
 }

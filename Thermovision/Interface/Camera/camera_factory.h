@@ -1,0 +1,6 @@
+#ifndef CAMERA_FACTORY_H
+#define CAMERA_FACTORY_H
+
+
+
+#endif // CAMERA_FACTORY_H
