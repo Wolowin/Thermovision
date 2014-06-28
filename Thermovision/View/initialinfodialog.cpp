@@ -21,13 +21,12 @@ calibration_parameters InitialInfoDialog::get_given_calibration_parameters()
 	calibration_parameters parameters;
 
 	parameters.profile_name = ui->Edit_calibrationProfileName->text();
-	parameters.camera_model = ui->ComboBox_camera_model->;
-	parameters.filter_model = ui->ComboBox_filter_model;
-	parameters.distance_to_obj = ui->SpineBox_distance;
-	parameters.lens_focal = ui->Spinbox_focal;
-	parameters.Gain = ui->SpinBox_Gain;
-	parameters.exposure_time = ui->SpinBox_Exposure;
+	parameters.camera_model = ui->ComboBox_camera_model->currentText();
+	parameters.filter_model = ui->ComboBox_filter_model->currentText();
+	parameters.distance_to_obj = ui->SpineBox_distance->value();
+	parameters.lens_focal = ui->Spinbox_focal->value();
+	parameters.Gain = ui->SpinBox_Gain->value();
+	parameters.exposure_time = ui->SpinBox_Exposure->value();
 
-	return calibration_parameters();
-
+	return parameters;
 }

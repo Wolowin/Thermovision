@@ -15,11 +15,13 @@ public:
 	void run();
 public slots:
 	void calibration_requested();
-
+	void start_measurement();
+	void stop_measurement();
 private:
 	boost::scoped_ptr<abstract_thermo_camera_model> the_model;
-	MainWindow w;
+	MainWindow main_window;
 
+	void show_legend_bar_label();
 };
 
 #endif // QT_THERMO_VISION_CONTROLLER_H

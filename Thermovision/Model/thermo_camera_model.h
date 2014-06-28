@@ -1,13 +1,15 @@
 #ifndef THERMO_CAMERA_MODEL_H
 #define THERMO_CAMERA_MODEL_H
 
+#include "Interface/calibration_parameters.h"
 #include "../Interface/Model/abstract_thermo_camera_model.h"
-
-
-#include <uEye.h>
+#include "Interface/Camera/abstract_camera_interface.h"
+#include <QDomDocument>
 #include <memory>
 #include <boost/shared_ptr.hpp>
 #include <boost/scoped_ptr.hpp>
+#include <QImage>
+#include <QTimer>
 
 class thermo_camera_model : public abstract_thermo_camera_model
 {
@@ -19,40 +21,33 @@ public:
 	virtual void image_capture();
 
 	virtual void run_calibration(calibration_parameters the_parameters);
+	virtual void run_measurement(LUT_table the_lut_table);
+	virtual void end_measurement();
+
+public slots:
+	virtual void react_to_changed_gain(int new_gain_percent);
+	virtual void react_to_changed_exposure_time(int new_time_ms);
+
+protected slots:
+	virtual void emit_picture_changed();
+
 private:
-	void get_connected_cameras_infos();
-	void alloc_mem_for_camera_list();
-	void get_camera_list();
-	void get_sensor_infos();
-	void initialize_camera();
-	void check_if_firmware_update_needed(INT nRet);
-	void allocate_memory_for_image();
+	boost::scoped_ptr<abstract_camera_interface> camera_object;
 
-	void GetMaxImageSize();
+	static const int calibration_start_temp = 200;
+	static const int calibration_end_temp = 1600;
+	static const int calibration_temp_increment = 50;
 
-	static const HIDS starting_camera_handle = 0;
-	HIDS operating_camera_handle;
-	INT number_of_cameras;
-	boost::shared_ptr<UEYE_CAMERA_LIST> camera_list_ptr;
-	boost::scoped_ptr<SENSORINFO> sensor_info_ptr;
+//	QImage qimage_from_32grayscale()
+	int value_from_calibration();
+	void do_calibration_step(int current_temp, std::map <int, int> &lut_temp_to_value_map);
+	void qtimer_workaround();
+	void emit_calibration_picture();
 
-	int image_memory_id;
-	char* raw_image_data_pointer;
-	INT		m_nSizeX;		// width of video
-	INT		m_nSizeY;		// height of video
-	INT		color_mode;	// Y8/RGB16/RGB24/REG32
-	INT		bits_per_pixel;// number of bits needed store one pixel
+	QTimer timer;
+	LUT_table used_lut_table;
 
-
+	static int number_of_picture;
+	calibration_parameters the_calibration_parameters;
 };
-
-
-struct camera_list_deleter
-{
-	void operator()(UEYE_CAMERA_LIST* list_ptr) const
-	{
-		delete[] ((BYTE*)list_ptr);
-	}
-};
-
 #endif // THERMO_CAMERA_MODEL_H

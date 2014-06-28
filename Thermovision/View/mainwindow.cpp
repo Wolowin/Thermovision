@@ -8,15 +8,9 @@ MainWindow::MainWindow(char *ptr, QWidget *parent) :
 	data_ptr(ptr)
 {
 	ui->setupUi(this);
+	ui->groupBox_calibration->setVisible(false);
+	ui->Groupbox_measurement->setVisible(false);
 
-	qtimer_workaround(); //TODO
-}
-
-void MainWindow::qtimer_workaround()
-{
-	QTimer *timer = new QTimer(this);
-	connect(timer, SIGNAL(timeout()), this, SLOT(update()));
-	timer->start(10);
 }
 
 MainWindow::~MainWindow()
@@ -24,11 +18,9 @@ MainWindow::~MainWindow()
 	delete ui;
 }
 
-void MainWindow::update()
+void MainWindow::update(QPixmap image)
 {
-	uchar* uptr=(uchar*)data_ptr;
-	QImage myImage(uptr, 768, 576, QImage::Format_RGB32 );
-	ui->imageLabel->setPixmap(QPixmap::fromImage(myImage));
+	ui->imageLabel->setPixmap(image);
 }
 
 

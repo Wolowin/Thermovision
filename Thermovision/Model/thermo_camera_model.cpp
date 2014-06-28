@@ -1,215 +1,175 @@
 #include "thermo_camera_model.h"
 #include "../log.h"
-#include <QDomDocument>
 
+#include <QMessageBox>
+#include "Interface/Camera/camera_factory.h"
+#include <QFile>
 
+#include <sstream>
+
+#include "abstract_xml_handler.h"
+#include "xml_handler.h"
+#include <map>
+
+#include "windows.h"
+
+int thermo_camera_model::number_of_picture = 1;
 
 thermo_camera_model::thermo_camera_model():
-	operating_camera_handle(starting_camera_handle),
-	sensor_info_ptr(new SENSORINFO)
+	camera_object(camera_factory::get_camera_object())
 {
-	get_connected_cameras_infos();
-	initialize_camera();
-	get_sensor_infos();
-	// setup the color depth to the current windows setting
-	is_GetColorDepth (operating_camera_handle, &bits_per_pixel, &color_mode);
-	is_SetColorMode (operating_camera_handle, color_mode);
-
-	// Check if the camera supports an arbitrary AOI
-	// Only the ueye xs does not support an arbitrary AOI
-	GetMaxImageSize();
-
-	Sleep(3000);
-	allocate_memory_for_image();
-	is_SetDisplayMode (operating_camera_handle, IS_SET_DM_DIB);
-	is_SetImageMem (operating_camera_handle, raw_image_data_pointer, image_memory_id);
-	log_debug("Camera preparations finished!");
+	camera_object->initialize_camera();
+	connect(&timer, SIGNAL(timeout()), this, SLOT(emit_picture_changed()));
 }
 
 thermo_camera_model::~thermo_camera_model()
 {
-	if (is_FreeImageMem(operating_camera_handle, raw_image_data_pointer, image_memory_id) != IS_SUCCESS){
-		log_error("Failed to release the image memory");
-	} else {
-		log_debug("Image memory released");
-	}
-
-	if (is_ExitCamera(operating_camera_handle) != IS_SUCCESS){
-		log_error("Failed to close the camera");
-	} else {
-		log_debug("Camera is properly closed");
-	}
+	camera_object->deinitialize_camera();
 }
 
 char *thermo_camera_model::get_data_pointer()
 {
-	return reinterpret_cast<char*>(raw_image_data_pointer);
+	return camera_object->get_data_pointer();
 }
 
-void thermo_camera_model::get_connected_cameras_infos()
-{
-	if( is_GetNumberOfCameras( &number_of_cameras ) == IS_SUCCESS) {
-		if( number_of_cameras != 1 ) {
-			log_error("Not supported number of cameras (either 0 or higher than 1)");
-		} else {
-			alloc_mem_for_camera_list();
-			get_camera_list();
-		}
-	}
-}
-
-void thermo_camera_model::alloc_mem_for_camera_list()
-{
-	boost::shared_ptr<UEYE_CAMERA_LIST> tmp(
-				(UEYE_CAMERA_LIST*) new BYTE [sizeof (DWORD) + number_of_cameras * sizeof (UEYE_CAMERA_INFO)],
-			camera_list_deleter());
-	camera_list_ptr = tmp;
-}
-
-void thermo_camera_model::get_camera_list()
-{
-	if (is_GetCameraList(camera_list_ptr.get()) != IS_SUCCESS) {
-		log_error("Failed to GetCameraList");
-	} else {
-		log_debug("Camera list received succesfully");
-	}
-}
-
-void thermo_camera_model::initialize_camera()
-{
-	INT nRet = is_InitCamera (&operating_camera_handle, NULL);
-	if (nRet != IS_SUCCESS) {
-		check_if_firmware_update_needed(nRet);
-	} else {
-		log_debug("Camera is initialized");
-	}
-}
-
-void thermo_camera_model::check_if_firmware_update_needed(INT nRet)
-{
-	//Check if GigE uEye SE needs a new starter firmware
-	if (nRet == IS_STARTER_FW_UPLOAD_NEEDED)
-	{
-		//Calculate time needed for updating the starter firmware
-		INT nTime;
-		is_GetDuration (operating_camera_handle, IS_SE_STARTER_FW_UPLOAD, &nTime);
-		/*
-	   e.g. have progress bar displayed in separate thread
-	  */
-
-		//Upload new starter firmware during initialization
-		operating_camera_handle =  operating_camera_handle | IS_ALLOW_STARTER_FW_UPLOAD;
-		nRet = is_InitCamera (&operating_camera_handle, NULL);
-
-		/*
-		end progress bar
-	   */
-	} else {
-		log_error("Cant initialize camera");
-	}
-}
-
-void thermo_camera_model::get_sensor_infos()
-{
-	if (is_GetSensorInfo(operating_camera_handle, sensor_info_ptr.get()) != IS_SUCCESS){
-		log_error("Failed to read sensor info");
-	} else {
-		log_debug("Sensor info read properly");
-	}
-}
-
-void thermo_camera_model::GetMaxImageSize()
-{
-	INT nAOISupported = 0;
-	BOOL bAOISupported = TRUE;
-	if (is_ImageFormat(operating_camera_handle,
-					   IMGFRMT_CMD_GET_ARBITRARY_AOI_SUPPORTED,
-					   (void*)&nAOISupported,
-					   sizeof(nAOISupported)) == IS_SUCCESS)
-	{
-		bAOISupported = (nAOISupported != 0);
-	}
-
-	if (bAOISupported)
-	{
-		// All other sensors
-		// Get maximum image size
-		m_nSizeX = sensor_info_ptr->nMaxWidth;
-		m_nSizeY = sensor_info_ptr->nMaxHeight;
-	}
-	else
-	{
-		// Only ueye xs
-		// Get image size of the current format
-		IS_SIZE_2D imageSize;
-		is_AOI(operating_camera_handle, IS_AOI_IMAGE_GET_SIZE, (void*)&imageSize, sizeof(imageSize));
-
-		m_nSizeX = imageSize.s32Width;
-		m_nSizeY = imageSize.s32Height;
-	}
-}
-
-void thermo_camera_model::allocate_memory_for_image()
-{
-	if (is_AllocImageMem(operating_camera_handle,
-					 m_nSizeX,
-					 m_nSizeY,
-					 bits_per_pixel,
-					 &raw_image_data_pointer,
-					 &image_memory_id) != IS_SUCCESS){
-		log_error("Failed to allocate memory for image");
-	} else {
-		log_debug("Memory for image allocated");
-	}
-}
 
 void thermo_camera_model::image_capture()
 {
-	is_CaptureVideo(operating_camera_handle, IS_WAIT);
-	log_debug("Capturing image");
+	camera_object->start_live_video();
+
 }
 
 void thermo_camera_model::run_calibration(calibration_parameters the_parameters)
 {
+	the_calibration_parameters = the_parameters;
+	boost::scoped_ptr<abstract_XML_handler> the_xml_handler(new XML_handler);
 
-	// przebieg kalibracji
-
-	QDomDocument document("Calibration profiles");
-
-		QDomElement first_profile = document.createElement( "profile_one" );
-		first_profile.setAttribute( "name", "spawanie" );
-		QDomElement two_profile = document.createElement( "profile_two" );
-		two_profile.setAttribute( "name", "lutowanie" );
-		QDomElement three_profile = document.createElement( "profile_three" );
-		three_profile.setAttribute( "name", "hartowanie" );
-
-
-		QDomElement first_parameters = document.createElement( "Parameters" );
-		first_parameters.setAttribute( "Camera_model", "some_model" );
-		first_parameters.setAttribute( "Filter_model", "some_filter_model" );
-		first_parameters.setAttribute( "jjytun", "wqer" );
-		first_parameters.setAttribute( "untrnu", "dsa" );
-		first_parameters.setAttribute( "ytitr", "gsdadel" );
-		first_parameters.setAttribute( "uyloyumodel", "somhdhfddel" );
-		first_parameters.setAttribute( "iyhu", "somejfdodel" );
-
-		QDomText first_text = document.createTextNode( "profile description" );
-
-		document.appendChild( first_profile );
-		document.appendChild( two_profile );
-		document.appendChild( three_profile );
-
-		first_profile.appendChild( first_parameters );
-		first_profile.appendChild( first_text );
-
-
-		QFile file( "simple.xml" );
-		if( !file.open( QIODevice::WriteOnly | QIODevice::Text ) )
-		{
-		qDebug( "Failed to open file for writing." );
+	if (the_xml_handler->if_profile_already_exists(the_calibration_parameters.profile_name))
+	{
 		return;
+	}
+
+	std::map <int, int> lut_temp_to_value_map;
+
+	for (int current_temp = calibration_start_temp;
+		current_temp <= calibration_end_temp;
+		current_temp += calibration_temp_increment)
+	{
+		do_calibration_step(current_temp, lut_temp_to_value_map);
+	}
+
+	the_xml_handler->add_profile(the_calibration_parameters, lut_temp_to_value_map);
+}
+
+void thermo_camera_model::run_measurement(LUT_table the_lut_table)
+{
+	camera_object->start_live_video();
+	used_lut_table = the_lut_table;
+	qtimer_workaround();
+}
+
+void thermo_camera_model::end_measurement()
+{
+	camera_object->stop_live_video();
+	timer.stop();
+}
+
+void thermo_camera_model::react_to_changed_gain(int new_gain_percent)
+{
+//	if (new_gain_percent < 0 ||)
+//	the_calibration_parameters.
+}
+
+void thermo_camera_model::react_to_changed_exposure_time(int new_time_ms)
+{
+
+}
+
+void thermo_camera_model::emit_picture_changed()
+{
+	//TODO needs to be changed later to support 2 color cameras
+	char *data_pointer = get_data_pointer();
+
+	int minimum_temperature = 200;
+	int maximum_temperature = 1000;
+
+
+	int image_heigh = camera_object->get_image_size_y();
+	int image_width = camera_object->get_image_size_x();
+
+	QImage indexed_image (image_width, image_heigh, QImage::Format_Indexed8);
+
+	for (int i = 0 ; i < image_heigh ; i ++)
+	{
+		uchar *indexed_image_ptr = indexed_image.scanLine(i);
+		for (int j = 0 ; j < image_width ; j ++)
+		{
+			double pixel_characteristic_value = (double) ((uchar)*data_pointer);
+			int temperature = used_lut_table.get_temp_from_value(pixel_characteristic_value);
+//			cout << "Dla wartosci pixel_characteristic_value: " << pixel_characteristic_value << " wartosc temperatury wynosi: " << temperature << endl;
+			double fraction = temperature - minimum_temperature;
+			fraction = fraction / (maximum_temperature - minimum_temperature);
+//			cout << " fraction: " << fraction << endl;
+			int value_to_lut = (fraction*255) +0.5;
+//			cout << " value_to_lut: " << value_to_lut << endl;
+			*indexed_image_ptr = value_to_lut;
+			indexed_image_ptr++;
+			data_pointer = data_pointer +4;
+//			Sleep(500);
 		}
-		QTextStream stream( &file );
-		stream << document.toString();
-		file.close();
+	}
+
+	indexed_image.setColorTable(LUT_table::false_color_qcolortable);
+
+	emit picture_changed(QPixmap::fromImage(indexed_image));
+}
+
+void thermo_camera_model::do_calibration_step(int current_temp, std::map <int, int> &lut_temp_to_value_map)
+{
+	std::stringstream ss;
+	ss << "Set the Black Body temperature to: " << current_temp << endl << endl << "When the temperature is set, please click OK";
+	QMessageBox::warning(0, "ACTION REQUIRED!!!", ss.str().c_str());
+
+	camera_object->capture_picture();
+
+	emit_calibration_picture();
+
+	lut_temp_to_value_map.insert(std::make_pair(current_temp, value_from_calibration()));
+}
+
+void thermo_camera_model::qtimer_workaround()
+{
+	timer.start(10);
+}
+
+void thermo_camera_model::emit_calibration_picture()
+{
+	uchar* uptr=(uchar*)get_data_pointer();
+	QImage myImage(uptr,
+				   camera_object->get_image_size_x(),
+				   camera_object->get_image_size_y(),
+				   QImage::Format_RGB32 );
+
+	//saving the picture
+	QString name = QString::number(number_of_picture++);
+	name.append(".jpg");
+	myImage.save(name);
+	emit picture_changed(QPixmap::fromImage(myImage));
+}
+
+int thermo_camera_model::value_from_calibration()
+{
+	int sum = 0;
+	char *data_pointer = get_data_pointer();
+	int image_heigh = camera_object->get_image_size_y();
+	int image_width = camera_object->get_image_size_x();
+	for (int i = 0 ; i < image_heigh ; i ++)
+	{
+		for (int j = 0 ; j < image_width ; j ++)
+		{
+			sum += (int) ((uchar)*data_pointer);
+			data_pointer += 4;
+		}
+	}
+	return sum /(image_width*image_heigh);
 }
