@@ -25,6 +25,7 @@ XML_handler::XML_handler():
 		file.close();
 		return;
 	}
+
 }
 
 XML_handler::~XML_handler()
@@ -32,106 +33,151 @@ XML_handler::~XML_handler()
 	file.close();
 }
 
-void XML_handler::add_profile(calibration_parameters the_parameters, map<int, int> lut_temp_to_value_map)
+void XML_handler::add_profile(calibration_parameters the_parameters)
 {
-	if ( if_profile_already_exists(the_parameters.profile_name))
-	{
-		return;
-	}
 	QDomElement root_element = profiles_DOM_document.documentElement();
 
 	QDomElement new_profile = profiles_DOM_document.createElement(the_parameters.profile_name);
 	QDomElement parameters = profiles_DOM_document.createElement( "Parameters" );
-	QDomElement lut = profiles_DOM_document.createElement( "LUT" );
+
 	parameters.setAttribute( "Camera_model", the_parameters.camera_model );
 	parameters.setAttribute( "Filter_model", the_parameters.filter_model );
 	parameters.setAttribute( "Distance_to_object", QString::number(the_parameters.distance_to_obj) );
 	parameters.setAttribute( "Lens_focal", QString::number(the_parameters.lens_focal) );
-	parameters.setAttribute( "Gain", QString::number(the_parameters.Gain) );
-	parameters.setAttribute( "Exposure_time", QString::number(the_parameters.exposure_time));
-
-	map<int, int>::iterator it;
-	for (it = lut_temp_to_value_map.begin();
-		 it != lut_temp_to_value_map.end();
-		 it++)
-	{
-		std::string current_temp_str = "t" + std::to_string(it->first);
-		std::string pixel_value_str = std::to_string(it->second);
-
-		lut.setAttribute(current_temp_str.c_str(), pixel_value_str.c_str() );
-	}
 
 	root_element.appendChild( new_profile );
 	new_profile.appendChild(parameters);
-	new_profile.appendChild(lut);
 
 	rewrite_file();
 }
 
-bool XML_handler::if_profile_already_exists(QString profile_name)
+bool XML_handler::profile_exists(calibration_parameters parameters_to_check)
 {
 	QDomElement root_element = profiles_DOM_document.documentElement();
 
-	if ( root_element.elementsByTagName( profile_name).size() != 0)
+	if ( root_element.elementsByTagName( parameters_to_check.profile_name).size() != 0)
 	{
-		QMessageBox::warning(0, "Communique", "Profile name already exists in the database!");
-		log_debug("Profile name already exists in the database");
 		return true;
 	}
 	return false;
 }
 
-std::vector<calibration_parameters> XML_handler::getProfilesWithParameters()
+QList<QString> XML_handler::get_profiles_names()
 {
 	QDomElement first_child = profiles_DOM_document.firstChild().toElement();
 
 	if (first_child == QDomElement())
 	{
-		//TODO add some log
-		cout << "XXX" << endl;
+		log_debug("Document doesnt have first child! Incorrect file format.");
+		return QList<QString>();
+	}
+
+	QList<QString> profile_names_vector;
+
+	QDomNodeList profiles_list = first_child.childNodes();
+
+	for (int i = 0; profiles_list.at(i) != QDomNode() ; i++)
+	{
+		profile_names_vector.push_back(profiles_list.at(i).toElement().tagName());
+	}
+
+	return profile_names_vector;
+}
+
+void XML_handler::iterate_the_profile(QDomNode profile,
+									  std::vector<calibration_parameters> &parameters_vector)
+{
+	QDomElement profile_element;
+	profile_element = profile.toElement();
+
+	QDomElement parameters_element = profile_element.toElement().firstChildElement(QString("Parameters"));
+
+	calibration_parameters the_parameters;
+	the_parameters.profile_name = profile_element.tagName();
+
+	the_parameters.camera_model = parameters_element.attribute(QString("Camera_model"));
+	the_parameters.filter_model = parameters_element.attribute(QString("Filter_model"));
+	the_parameters.distance_to_obj = parameters_element.attribute(QString("Distance_to_object")).toDouble();
+	the_parameters.lens_focal = parameters_element.attribute(QString("Lens_focal")).toDouble();
+
+	QDomNodeList gains_list = profile_element.childNodes();
+
+	for (int i = 0; gains_list.at(i) != QDomNode() ; i++)
+	{
+		iterate_throught_gain(gains_list.at(i), parameters_vector, the_parameters);
+	}
+}
+
+void XML_handler::iterate_throught_gain(QDomNode gain, std::vector<calibration_parameters> &parameters_vector,
+										calibration_parameters the_parameters)
+{
+	QDomElement gain_element;
+	gain_element = gain.toElement();
+
+	QDomNodeList exposure_times_list = gain_element.childNodes();
+
+	the_parameters.Gain = gain_element.tagName().remove("Gain_").toInt();
+
+	for (int i = 0; exposure_times_list.at(i) != QDomNode() ; i++)
+	{
+		iterate_throught_exposure(exposure_times_list.at(i), parameters_vector, the_parameters);
+	}
+
+}
+
+void XML_handler::iterate_throught_exposure(QDomNode exposure_time, std::vector<calibration_parameters> &parameters_vector,
+											calibration_parameters the_parameters)
+{
+	QDomElement exposure_time_element = exposure_time.toElement();
+
+	the_parameters.exposure_time = exposure_time_element.tagName().remove("Exposure_time_").toInt();
+
+	parameters_vector.push_back(the_parameters);
+}
+
+std::vector<calibration_parameters> XML_handler::get_profiles_with_parameters()
+{
+	QDomElement first_child = profiles_DOM_document.firstChild().toElement();
+
+	if (first_child == QDomElement())
+	{
+		log_debug("Document doesnt have first child! Incorrect file format.");
 		return std::vector<calibration_parameters>();
 	}
 
-	QDomNodeList node_list = first_child.childNodes();
-	QDomElement tmp;
 	std::vector<calibration_parameters> parameters_vector;
-	for (int i = 0; node_list.at(i) != QDomNode() ; i++)
+
+	QDomNodeList profiles_list = first_child.childNodes();
+
+	for (int i = 0; profiles_list.at(i) != QDomNode() ; i++)
 	{
-		calibration_parameters the_parameters;
-
-		tmp = node_list.at(i).toElement();
-		the_parameters.profile_name = tmp.tagName();
-
-		tmp = tmp.firstChildElement(QString("Parameters"));
-
-		the_parameters.camera_model = tmp.attribute(QString("Camera_model"));
-		the_parameters.filter_model = tmp.attribute(QString("Filter_model"));
-		the_parameters.distance_to_obj = tmp.attribute(QString("Distance_to_object")).toDouble();
-		the_parameters.lens_focal = tmp.attribute(QString("Lens_focal")).toDouble();
-		the_parameters.Gain = tmp.attribute(QString("Gain")).toInt();
-		the_parameters.exposure_time = tmp.attribute(QString("Exposure_time")).toInt();
-		parameters_vector.push_back(the_parameters);
+		iterate_the_profile(profiles_list.at(i), parameters_vector);
 	}
 
-	QString tmp2 = first_child.tagName();
-	cout << tmp2.toStdString() << endl;
-	cout << parameters_vector.size() << endl;
 	return parameters_vector;
 }
 
-LUT_table XML_handler::get_profile_LUT_table(QString profile)
+LUT_table XML_handler::get_profile_LUT_table(calibration_parameters profile_parameters)
 {
 	log_debug("Getting profile LUT table");
 	LUT_table the_LUT_table;
-	if (profiles_DOM_document.firstChildElement("Profiles").firstChildElement(profile) == QDomElement())
+	if (profiles_DOM_document.firstChildElement("Profiles").firstChildElement(profile_parameters.profile_name) == QDomElement())
 	{
 		log_debug("Didnt find element for some reason");
 		return LUT_table();
 	}
 
+	QDomElement profile_element =
+			profiles_DOM_document.firstChildElement("Profiles").firstChildElement(profile_parameters.profile_name);
+
+	QString gain_string = QString("Gain_").append(QString::number(profile_parameters.Gain));
+	QDomElement gain_element = profile_element.firstChildElement(gain_string);
+
+	QString exposure_string = QString("Exposure_time_").append(QString::number(profile_parameters.exposure_time));
+	QDomElement exposure_element = gain_element.firstChildElement(exposure_string);
+
 	QDomNamedNodeMap lut_attributes =
-			profiles_DOM_document.firstChildElement("Profiles").firstChildElement(profile)
-			.firstChildElement("LUT").attributes();
+			exposure_element.firstChildElement("LUT").attributes();
 
 	int temperatures_count = lut_attributes.count();
 	for (int i = 0 ; i < temperatures_count ; i ++)
@@ -140,12 +186,79 @@ LUT_table XML_handler::get_profile_LUT_table(QString profile)
 		QString attribute_name = current_attribute.name().remove(QChar('t'));
 		QString attribute_value = current_attribute.value();
 
-		cout << attribute_name.toStdString() << endl;
-		cout << attribute_value.toStdString() << endl << endl;
 		the_LUT_table.add_data_from_profile(attribute_name.toInt(), attribute_value.toDouble());
 	}
 
 	return the_LUT_table;
+}
+
+calibration_parameters XML_handler::get_profile_details(QString profile_name)
+{
+	QDomElement root_element = profiles_DOM_document.documentElement();
+	QDomElement profile_element = root_element.firstChildElement(profile_name);
+	QDomElement parameters_element = profile_element.firstChildElement(QString("Parameters"));
+
+	calibration_parameters the_parameters;
+	the_parameters.profile_name = profile_name;
+	the_parameters.camera_model = parameters_element.attribute(QString("Camera_model"));
+	the_parameters.filter_model = parameters_element.attribute(QString("Filter_model"));
+	the_parameters.distance_to_obj = parameters_element.attribute(QString("Distance_to_object")).toDouble();
+	the_parameters.lens_focal = parameters_element.attribute(QString("Lens_focal")).toDouble();
+	return the_parameters;
+}
+
+void XML_handler::add_lut_attribute(int temperature, int value, QDomElement &lut)
+{
+	QString string_temp = QString("t").append(QString::number(temperature));
+	QString string_value = QString::number(value);
+	lut.setAttribute(string_temp, string_value);
+}
+
+void XML_handler::add_calibration_outcome(calibration_parameters parameters, int temperature, int value)
+{
+	log_debug("Siemka");
+	QDomElement root_element = profiles_DOM_document.documentElement();
+	QDomElement profile_element = root_element.firstChildElement(parameters.profile_name);
+	QString gain_string = QString("Gain_").append(QString::number(parameters.Gain));
+	QString exposure_string = QString("Exposure_time_").append(QString::number(parameters.exposure_time));
+
+	QDomElement gain_element = profile_element.firstChildElement(gain_string);
+	if ( gain_element == QDomElement() )
+	{
+		log_debug("Dodaje nowy element gain");
+		//add new gain and exposure element;
+		QDomElement gain = profiles_DOM_document.createElement(gain_string);
+		QDomElement exposure = profiles_DOM_document.createElement(exposure_string);
+		QDomElement lut = profiles_DOM_document.createElement( "LUT" );
+
+		profile_element.appendChild(gain);
+		gain.appendChild(exposure);
+		exposure.appendChild(lut);
+
+		add_lut_attribute(temperature, value, lut);
+	}
+	else
+	{
+		QDomElement exposure_element = gain_element.firstChildElement(exposure_string);
+		if ( exposure_element == QDomElement() )
+		{
+			log_debug("Dodaje nowy element exposure");
+			QDomElement exposure = profiles_DOM_document.createElement(exposure_string);
+			QDomElement lut = profiles_DOM_document.createElement( "LUT" );
+
+			gain_element.appendChild(exposure);
+			exposure.appendChild(lut);
+
+			add_lut_attribute(temperature, value, lut);
+		}
+		else
+		{
+			log_debug("Dodaje nowy wpis lut");
+			QDomElement lut = exposure_element.firstChildElement( "LUT" );
+			add_lut_attribute(temperature, value, lut);
+		}
+	}
+		rewrite_file();
 }
 
 void XML_handler::rewrite_file()

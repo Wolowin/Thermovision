@@ -10,7 +10,7 @@ ProfilePickingDialog::ProfilePickingDialog(QWidget *parent) :
 {
 	ui->setupUi(this);
 	XML_handler the_xml_handler;
-	parameters_vector = the_xml_handler.getProfilesWithParameters();
+	parameters_vector = the_xml_handler.get_profiles_with_parameters();
 	ui->profiles_table->setRowCount(parameters_vector.size());
 	for (int row = 0 ; row < parameters_vector.size() ; row ++)
 	{
@@ -39,14 +39,16 @@ ProfilePickingDialog::~ProfilePickingDialog()
 	delete ui;
 }
 
-QString ProfilePickingDialog::get_picked_profile()
+calibration_parameters ProfilePickingDialog::get_picked_profile_parameters()
 {
 	int row = ui->profiles_table->currentRow();
 	if ( ui->profiles_table->selectedItems().count() == 0 )
 	{
 		log_debug("No item sellected");
-		return QString();
+		calibration_parameters empty_return;
+		empty_return.profile_name = QString();
+		return empty_return;
 	}
 	cout << "current row " << row << endl;
-	return parameters_vector[row].profile_name;
+	return parameters_vector[row];
 }

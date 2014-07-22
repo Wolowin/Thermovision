@@ -1,6 +1,7 @@
 #include "lut_table.h"
 #include "QColor"
 #include <iostream>
+#include "log.h"
 using namespace std;
 
 QVector<QRgb> LUT_table::false_color_qcolortable;
@@ -82,6 +83,7 @@ int LUT_table::get_temp_from_value(double pixel_value)
 		std::map<int, double>::iterator it = data_from_profile.begin();
 		if ( pixel_value < it->second )
 		{
+//			log_error("1");
 			temperature_rounded = it->first;
 			actual_LUT[pixel_value] = temperature_rounded.get();
 			return temperature_rounded.get(); //rounding
@@ -90,6 +92,7 @@ int LUT_table::get_temp_from_value(double pixel_value)
 		std::map<int, double>::reverse_iterator r_it = data_from_profile.rbegin();
 		if ( pixel_value > r_it->second )
 		{
+//			log_error("2");
 			temperature_rounded = r_it->first;
 			actual_LUT[pixel_value] = temperature_rounded.get();
 			return temperature_rounded.get(); //rounding

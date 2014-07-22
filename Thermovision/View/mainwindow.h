@@ -23,6 +23,8 @@ public:
 
 public slots:
 	void update(QPixmap image);
+	void gain_changed_by_model(int new_gain);
+	void exposure_changed_by_model(int new_exposure);
 
 signals:
 	void exposure_time_changed(int new_exposure_time_ms);

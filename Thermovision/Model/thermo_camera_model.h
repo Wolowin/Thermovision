@@ -10,6 +10,8 @@
 #include <boost/scoped_ptr.hpp>
 #include <QImage>
 #include <QTimer>
+#include <QRect>
+#include "View/calibrationpicturedialog.h"
 
 class thermo_camera_model : public abstract_thermo_camera_model
 {
@@ -18,28 +20,27 @@ public:
 	virtual ~thermo_camera_model();
 
 	virtual char* get_data_pointer();
-	virtual void image_capture();
 
-	virtual void run_calibration(calibration_parameters the_parameters);
+	virtual void create_new_profile(calibration_parameters the_parameters);
 	virtual void run_measurement(LUT_table the_lut_table);
 	virtual void end_measurement();
+	virtual void run_calibration(calibration_parameters the_calibration_parameters);
+	virtual void start_calibration_video();
+	virtual QImage get_current_picture();
 
 public slots:
-	virtual void react_to_changed_gain(int new_gain_percent);
-	virtual void react_to_changed_exposure_time(int new_time_ms);
+	virtual void exposure_changed_by_user(int new_exposure);
+	virtual void gain_changed_by_user(int new_gain);
+	virtual void post_slot_connection_initialization();
 
 protected slots:
-	virtual void emit_picture_changed();
+	virtual void emit_measurement_picture();
 
 private:
 	boost::scoped_ptr<abstract_camera_interface> camera_object;
 
-	static const int calibration_start_temp = 200;
-	static const int calibration_end_temp = 1600;
-	static const int calibration_temp_increment = 50;
-
 //	QImage qimage_from_32grayscale()
-	int value_from_calibration();
+	int get_avarage_image_calibration_value(QImage image_to_calculate_value);
 	void do_calibration_step(int current_temp, std::map <int, int> &lut_temp_to_value_map);
 	void qtimer_workaround();
 	void emit_calibration_picture();
@@ -49,5 +50,7 @@ private:
 
 	static int number_of_picture;
 	calibration_parameters the_calibration_parameters;
+	CalibrationPictureDialog calibration_picture_dialog;
+
 };
 #endif // THERMO_CAMERA_MODEL_H

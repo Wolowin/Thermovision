@@ -8,7 +8,7 @@
 using namespace std;
 
 #ifdef DEBUG_BUILD
-#define log_debug(msg) cout << __PRETTY_FUNCTION__ << endl << __FILE__ << ":" << __LINE__ << ":" << msg << endl
+#define log_debug(msg) cout << __PRETTY_FUNCTION__ << endl << __FILE__ << ":" << __LINE__ << ":" << msg << endl << endl
 #else
 #define LogDebug(msg)
 #endif

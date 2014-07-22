@@ -15,7 +15,7 @@ class ProfilePickingDialog : public QDialog
 public:
 	explicit ProfilePickingDialog(QWidget *parent = 0);
 	~ProfilePickingDialog();
-	QString get_picked_profile();
+	calibration_parameters get_picked_profile_parameters();
 private:
 	Ui::ProfilePickingDialog *ui;
 	std::vector <calibration_parameters> parameters_vector;

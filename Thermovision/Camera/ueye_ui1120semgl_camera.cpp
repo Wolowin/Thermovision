@@ -37,8 +37,11 @@ void uEYE_UI1120SEMGL_camera::initialize_camera()
 	double pva11 = 0;   //disable autogain
 	double pva12 = 0;
 
-	if (is_SetAutoParameter(operating_camera_handle, IS_SET_ENABLE_AUTO_GAIN, &pva11, &pva12) == IS_SUCCESS)    //disable autogain
+	INT ret = is_SetAutoParameter(operating_camera_handle, IS_SET_ENABLE_AUTO_GAIN, &pva11, &pva12);
+	cout << "1 ret " <<  ret<< endl;
+	if (ret == IS_SUCCESS)    //disable autogain
 		cout << "Pierwsze ok" << endl;
+
 	if (is_SetAutoParameter(operating_camera_handle, IS_SET_ENABLE_AUTO_SENSOR_GAIN, &pva11, &pva12) == IS_SUCCESS)    //disable sensor autogain
 		cout << "Drugie ok" << endl;
 
@@ -81,6 +84,36 @@ void uEYE_UI1120SEMGL_camera::stop_live_video()
 {
 	is_StopLiveVideo(operating_camera_handle, IS_WAIT);
 	log_debug("Stopping live video");
+}
+
+int uEYE_UI1120SEMGL_camera::set_gain_percent(int gain_percent)
+{
+	log_debug("Setting gain...");
+	INT return_status = is_SetHardwareGain(operating_camera_handle, gain_percent, IS_IGNORE_PARAMETER, IS_IGNORE_PARAMETER, IS_IGNORE_PARAMETER);
+	cout << "set_gain_percent return_status: " << return_status << endl;
+
+	return 0;
+}
+
+int uEYE_UI1120SEMGL_camera::set_exposure_time_in_ms(int exposure_time_ms)
+{
+	log_debug("Setting exposure time...");
+	return 0;
+}
+
+int uEYE_UI1120SEMGL_camera::get_gain_percent(int &gain_percent)
+{
+	log_debug("Getting gain setting...");
+	gain_percent = is_SetHardwareGain(operating_camera_handle, IS_GET_MASTER_GAIN, IS_IGNORE_PARAMETER, IS_IGNORE_PARAMETER, IS_IGNORE_PARAMETER);
+	cout << "get_gain_percent return_status: " << gain_percent << endl;
+	return 0;
+}
+
+int uEYE_UI1120SEMGL_camera::get_exposure_time_in_ms(int &exposure_time_ms)
+{
+	log_debug("Getting exposure time...");
+	exposure_time_ms = 0;
+	return 0;
 }
 
 int uEYE_UI1120SEMGL_camera::get_image_size_x()

@@ -20,6 +20,11 @@ public:
 	virtual int get_image_size_x();
 	virtual int get_image_size_y();
 	virtual void stop_live_video();
+	virtual int set_gain_percent(int gain_percent);
+	virtual int set_exposure_time_in_ms(int exposure_time_ms);
+	virtual int get_gain_percent(int &gain_percent);
+	virtual int get_exposure_time_in_ms(int &exposure_time_ms);
+
 private:
 
 	void get_connected_cameras_infos();

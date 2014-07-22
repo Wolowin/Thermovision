@@ -25,8 +25,6 @@ calibration_parameters InitialInfoDialog::get_given_calibration_parameters()
 	parameters.filter_model = ui->ComboBox_filter_model->currentText();
 	parameters.distance_to_obj = ui->SpineBox_distance->value();
 	parameters.lens_focal = ui->Spinbox_focal->value();
-	parameters.Gain = ui->SpinBox_Gain->value();
-	parameters.exposure_time = ui->SpinBox_Exposure->value();
 
 	return parameters;
 }

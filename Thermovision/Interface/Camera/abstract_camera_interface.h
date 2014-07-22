@@ -17,6 +17,10 @@ public:
 	virtual void stop_live_video() = 0;
 	virtual int get_image_size_x() = 0;
 	virtual int get_image_size_y() = 0;
+	virtual int set_gain_percent(int gain_percent) = 0;
+	virtual int set_exposure_time_in_ms(int exposure_time_ms) = 0;
+	virtual int get_gain_percent(int &gain_percent) = 0;
+	virtual int get_exposure_time_in_ms(int &exposure_time_ms) = 0;
 
 };
 
