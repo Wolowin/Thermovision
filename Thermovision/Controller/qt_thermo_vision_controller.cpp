@@ -30,6 +30,7 @@ qt_thermo_vision_controller::qt_thermo_vision_controller():
 
 	connect(main_window.ui->spinBox_Gain, SIGNAL(valueChanged(int)),the_model.get() , SLOT(gain_changed_by_user(int)));
 	connect(main_window.ui->spinBox_exposureTime, SIGNAL(valueChanged(int)), the_model.get(), SLOT(exposure_changed_by_user(int)));
+	connect(main_window.ui->doubleSpinBox_emissivity, SIGNAL(valueChanged(double)), the_model.get(), SLOT (emissivity_changed_by_user(double)));
 
 	the_model->post_slot_connection_initialization();
 
@@ -77,6 +78,9 @@ void qt_thermo_vision_controller::start_measurement()
 	main_window.ui->groupBox_calibration->setVisible(false);
 	main_window.ui->Groupbox_measurement->setVisible(true);
 	show_legend_bar_label();
+
+	the_model->gain_changed_by_user(profile_parameters.Gain);
+	the_model->exposure_changed_by_user(profile_parameters.exposure_time);
 
 	LUT_table the_lut_table = XML_handler().get_profile_LUT_table(profile_parameters);
 

@@ -12,6 +12,7 @@
 #include <QTimer>
 #include <QRect>
 #include "View/calibrationpicturedialog.h"
+#include <vector>
 
 class thermo_camera_model : public abstract_thermo_camera_model
 {
@@ -32,6 +33,7 @@ public slots:
 	virtual void exposure_changed_by_user(int new_exposure);
 	virtual void gain_changed_by_user(int new_gain);
 	virtual void post_slot_connection_initialization();
+	virtual void emissivity_changed_by_user(double new_emissivity);
 
 protected slots:
 	virtual void emit_measurement_picture();
@@ -48,9 +50,10 @@ private:
 	QTimer timer;
 	LUT_table used_lut_table;
 
-	static int number_of_picture;
+//	static int number_of_picture;
 	calibration_parameters the_calibration_parameters;
 	CalibrationPictureDialog calibration_picture_dialog;
-
+	std::vector< std::vector <int> > current_temperature_map;
+	double emissivity;
 };
 #endif // THERMO_CAMERA_MODEL_H

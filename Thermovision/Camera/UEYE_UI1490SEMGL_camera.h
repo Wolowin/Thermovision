@@ -1,5 +1,5 @@
-#ifndef UEYE_UI1120SEMGL_CAMERA_H
-#define UEYE_UI1120SEMGL_CAMERA_H
+#ifndef UEYE_UI1490SEMGL_CAMERA_H
+#define UEYE_UI1490SEMGL_CAMERA_H
 
 #include "Interface/Camera/abstract_camera_interface.h"
 
@@ -7,10 +7,10 @@
 #include <boost/shared_ptr.hpp>
 
 #include <uEye.h>
-class uEYE_UI1120SEMGL_camera : public abstract_camera_interface
+class UEYE_UI1490SEMGL_camera : public abstract_camera_interface
 {
 public:
-	uEYE_UI1120SEMGL_camera();
+	UEYE_UI1490SEMGL_camera();
 
 	virtual void initialize_camera();
 	virtual void deinitialize_camera();
@@ -21,9 +21,9 @@ public:
 	virtual int get_image_size_y();
 	virtual void stop_live_video();
 	virtual int set_gain_percent(int gain_percent);
-	virtual int set_exposure_time_in_ms(int exposure_time_us);
+	virtual int set_exposure_time_in_ms(int exposure_time_ms);
 	virtual int get_gain_percent(int &gain_percent);
-	virtual int get_exposure_time_in_ms(int &exposure_time_us);
+	virtual int get_exposure_time_in_ms(int &exposure_time_ms);
 
 private:
 
@@ -51,7 +51,7 @@ private:
 	INT		bits_per_pixel;// number of bits needed store one pixel
 };
 
-struct camera_list_deleter
+struct camera_list_deleter2
 {
 	void operator()(UEYE_CAMERA_LIST* list_ptr) const
 	{
@@ -59,4 +59,4 @@ struct camera_list_deleter
 	}
 };
 
-#endif // UEYE_UI1120SEMGL_CAMERA_H
+#endif // UEYE_UI1490SEMGL_CAMERA_H

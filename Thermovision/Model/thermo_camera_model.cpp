@@ -14,14 +14,21 @@
 #include "windows.h"
 
 
-int thermo_camera_model::number_of_picture = 1;
+//int thermo_camera_model::number_of_picture = 1;
 
 thermo_camera_model::thermo_camera_model():
-	camera_object(camera_factory::get_camera_object())
+	camera_object(camera_factory::get_camera_object()),
+	emissivity(1)
 {
 	camera_object->initialize_camera();
+	int image_y = camera_object->get_image_size_y();
+	int image_x = camera_object->get_image_size_x();
+	current_temperature_map.resize(image_y);
+	for (int i = 0 ; i < image_y ; i ++)
+	{
+		current_temperature_map[i].resize(image_x);
+	}
 }
-
 thermo_camera_model::~thermo_camera_model()
 {
 	camera_object->deinitialize_camera();
@@ -50,6 +57,7 @@ void thermo_camera_model::create_new_profile(calibration_parameters the_paramete
 void thermo_camera_model::run_measurement(LUT_table the_lut_table)
 {
 	log_debug("Starting measurement");
+
 	disconnect(&timer, SIGNAL(timeout()), this, SLOT(emit_calibration_picture()));
 	connect(&timer, SIGNAL(timeout()), this, SLOT(emit_measurement_picture()));
 
@@ -75,17 +83,13 @@ void thermo_camera_model::run_calibration(calibration_parameters the_calibration
 		return;
 	}
 
-	cout << "qwe"<< endl;
 	//saving the picture
 //	QString name = QString::number(number_of_picture++);
 //	name.append(".jpg");
 //	calibration_picture.save(name);
-cout << "qwe2"<< endl;
 	QImage AOI_image_part = calibration_picture_dialog.get_selected_image_part();
-cout << "qwe3"<< endl;
 	int avarage_image_value = get_avarage_image_calibration_value(AOI_image_part);
 	int temperature = calibration_picture_dialog.get_current_temperature();
-cout << "qwe4"<< endl;
 	XML_handler tmp_xml_handler;
 
 	tmp_xml_handler.add_calibration_outcome(
@@ -103,12 +107,35 @@ void thermo_camera_model::start_calibration_video()
 
 void thermo_camera_model::exposure_changed_by_user(int new_exposure)
 {
+	int old_exposure;
+	int return_status = camera_object->get_exposure_time_in_ms(old_exposure);
+
+	if (new_exposure == old_exposure)
+	{
+		return;
+	}
+
+	if (return_status == -1)
+	{
+		log_debug("Exposure time not supported");
+		emit change_view_exposure_value(old_exposure);
+		return;
+	}
+
 	camera_object->set_exposure_time_in_ms(new_exposure);
+	emit change_view_exposure_value(new_exposure);
 }
 
 void thermo_camera_model::gain_changed_by_user(int new_gain)
 {
+	int old_gain;
+	camera_object->get_gain_percent(old_gain);
+
+	if (new_gain == old_gain)
+		return;
+
 	int return_status = camera_object->set_gain_percent(new_gain);
+	emit change_view_gain_value(new_gain);
 }
 
 void thermo_camera_model::post_slot_connection_initialization()
@@ -122,9 +149,14 @@ void thermo_camera_model::post_slot_connection_initialization()
 	emit change_view_exposure_value( received_camera_exposure);
 }
 
+void thermo_camera_model::emissivity_changed_by_user(double new_emissivity)
+{
+	emissivity = new_emissivity;
+}
+
 void thermo_camera_model::emit_measurement_picture()
 {
-	//TODO needs to be changed later to support 2 color cameras
+	//TODO needs to be changed later to support 2 color cameras the whole function (including emissivity support)
 	char *data_pointer = get_data_pointer();
 
 	int minimum_temperature = 0;
@@ -136,13 +168,15 @@ void thermo_camera_model::emit_measurement_picture()
 
 	QImage indexed_image (image_width, image_heigh, QImage::Format_Indexed8);
 
+	double emissivity_snapshot = emissivity;
 	for (int i = 0 ; i < image_heigh ; i ++)
 	{
 		uchar *indexed_image_ptr = indexed_image.scanLine(i);
 		for (int j = 0 ; j < image_width ; j ++)
 		{
 			double pixel_characteristic_value = (double) ((uchar)*data_pointer);
-			int temperature = used_lut_table.get_temp_from_value(pixel_characteristic_value);
+			int temperature = used_lut_table.get_temp_from_value(pixel_characteristic_value / emissivity_snapshot);
+			current_temperature_map[i][j] = temperature;
 //			cout << "Dla wartosci pixel_characteristic_value: " << pixel_characteristic_value << " wartosc temperatury wynosi: " << temperature << endl;
 			double fraction = temperature - minimum_temperature;
 			fraction = fraction / (maximum_temperature - minimum_temperature);

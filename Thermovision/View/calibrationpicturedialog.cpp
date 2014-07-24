@@ -1,8 +1,10 @@
 #include "calibrationpicturedialog.h"
 #include "ui_calibrationpicturedialog.h"
-
 #include <iostream>
+
 using namespace std;
+
+
 CalibrationPictureDialog::CalibrationPictureDialog(QWidget *parent) :
 	QDialog(parent),
 	ui(new Ui::CalibrationPictureDialog)
@@ -39,7 +41,7 @@ int CalibrationPictureDialog::get_current_temperature()
 
 void CalibrationPictureDialog::set_image(QImage the_image_to_set)
 {
-	QImage copy = the_image_to_set.copy();
+	QImage copy = the_image_to_set.copy().scaled(QSize(1200,800), Qt::KeepAspectRatio);
 	drawable_qlabel->put_picture_in_label(copy);
 	drawable_qlabel->set_starting_selection_rectangle(default_AOI);
 	drawable_qlabel->update();

@@ -30,6 +30,7 @@ public slots:
 	virtual void gain_changed_by_user(int new_gain) = 0;
 	virtual void post_slot_connection_initialization() = 0;
 	virtual QImage get_current_picture() = 0;
+	virtual void emissivity_changed_by_user(double new_emissivity) = 0;
 
 protected slots:
 	virtual void emit_measurement_picture() = 0;
