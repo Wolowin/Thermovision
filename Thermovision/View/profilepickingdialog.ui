@@ -20,6 +20,13 @@
       <string>Profiles</string>
      </property>
      <layout class="QGridLayout" name="gridLayout">
+      <item row="0" column="0">
+       <widget class="QLabel" name="label">
+        <property name="text">
+         <string>Pick a profile to use for measurement:</string>
+        </property>
+       </widget>
+      </item>
       <item row="1" column="0">
        <widget class="QTableWidget" name="profiles_table">
         <column>
@@ -47,26 +54,16 @@
           <string>Lens focal</string>
          </property>
         </column>
-        <column>
-         <property name="text">
-          <string>Gain used</string>
-         </property>
-        </column>
-        <column>
-         <property name="text">
-          <string>Exposure time</string>
-         </property>
-        </column>
-       </widget>
-      </item>
-      <item row="0" column="0">
-       <widget class="QLabel" name="label">
-        <property name="text">
-         <string>Pick a profile to use for measurement:</string>
-        </property>
        </widget>
       </item>
      </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QCheckBox" name="checkBox_ReteachNeuralNetwork">
+     <property name="text">
+      <string>Retech neural network</string>
+     </property>
     </widget>
    </item>
    <item>

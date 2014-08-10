@@ -21,7 +21,7 @@ public:
 	virtual int set_exposure_time_in_ms(int exposure_time_ms) = 0;
 	virtual int get_gain_percent(int &gain_percent) = 0;
 	virtual int get_exposure_time_in_ms(int &exposure_time_ms) = 0;
-
+	virtual bool is_monochrome() = 0;
 };
 
 #endif // ABSTRACT_CAMERA_INTERFACE_H

@@ -20,10 +20,10 @@ public:
 	thermo_camera_model();
 	virtual ~thermo_camera_model();
 
-	virtual char* get_data_pointer();
+	virtual unsigned char *get_data_pointer();
 
 	virtual void create_new_profile(calibration_parameters the_parameters);
-	virtual void run_measurement(LUT_table the_lut_table);
+	virtual void run_measurement(neural_network_wrapper* tmp_neural_network);
 	virtual void end_measurement();
 	virtual void run_calibration(calibration_parameters the_calibration_parameters);
 	virtual void start_calibration_video();
@@ -41,7 +41,6 @@ protected slots:
 private:
 	boost::scoped_ptr<abstract_camera_interface> camera_object;
 
-//	QImage qimage_from_32grayscale()
 	int get_avarage_image_calibration_value(QImage image_to_calculate_value);
 	void do_calibration_step(int current_temp, std::map <int, int> &lut_temp_to_value_map);
 	void qtimer_workaround();
@@ -50,10 +49,19 @@ private:
 	QTimer timer;
 	LUT_table used_lut_table;
 
-//	static int number_of_picture;
 	calibration_parameters the_calibration_parameters;
 	CalibrationPictureDialog calibration_picture_dialog;
-	std::vector< std::vector <int> > current_temperature_map;
-	double emissivity;
+	std::vector< std::vector <int> > current_temperature_2dvector;
+	float emissivity;
+	neural_network_wrapper* the_neural_network;
+	int current_gain;
+	int current_exposure;
+	QImage indexed_image_to_emit;
+	int image_y;
+	int image_x;
+
+	const static int minimum_temperature = 0;
+	const static int maximum_temperature = 1000;
+	bool is_lut_up_to_date;
 };
 #endif // THERMO_CAMERA_MODEL_H

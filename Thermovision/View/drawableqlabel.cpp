@@ -50,14 +50,14 @@ void DrawableQLabel::mousePressEvent(QMouseEvent *e)
 {
 	if (e->button()==Qt::RightButton)
 	{
-		cout << "Jest prawy"<< endl;
+//		cout << "Jest prawy"<< endl;
 		QImage mniejszy_image = calibration_image.copy(selectionRect);
 		setPixmap(QPixmap::fromImage(mniejszy_image));
 
 	}
 	else
 	{
-		cout << "Jest lewy"<< endl;
+//		cout << "Jest lewy"<< endl;
 		selectionStarted=true;
 		selectionRect.setTopLeft(e->pos());
 		selectionRect.setBottomRight(e->pos());
@@ -66,7 +66,7 @@ void DrawableQLabel::mousePressEvent(QMouseEvent *e)
 
 void DrawableQLabel::mouseMoveEvent(QMouseEvent *e)
 {
-	cout << "Move"<< endl;
+//	cout << "Move"<< endl;
 	if (selectionStarted)
 	{
 		selectionRect.setBottomRight(e->pos());
@@ -76,6 +76,26 @@ void DrawableQLabel::mouseMoveEvent(QMouseEvent *e)
 
 void DrawableQLabel::mouseReleaseEvent(QMouseEvent *e)
 {
-	cout << "Release"<< endl;
+//	cout << "Release"<< endl;
+	cout << selectionRect.topLeft().x() << endl;
+	cout << selectionRect.topLeft().y() << endl;
+	cout << selectionRect.bottomRight().x() << endl;
+	cout << selectionRect.bottomRight().y() << endl;
+	if ( selectionRect.left() > selectionRect.right())
+	{
+		int tmp = selectionRect.left();
+		selectionRect.setLeft(selectionRect.right());
+		selectionRect.setRight(tmp);
+	}
+	if ( selectionRect.top() > selectionRect.bottom())
+	{
+		int tmp = selectionRect.top();
+		selectionRect.setTop(selectionRect.bottom());
+		selectionRect.setBottom(tmp);
+	}
+	cout << selectionRect.topLeft().x() << endl;
+	cout << selectionRect.topLeft().y() << endl;
+	cout << selectionRect.bottomRight().x() << endl;
+	cout << selectionRect.bottomRight().y() << endl;
 	selectionStarted=false;
 }

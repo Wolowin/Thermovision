@@ -9,11 +9,12 @@
 #include "Interface/calibration_parameters.h"
 #include "model/xml_handler.h"
 #include "Interface/lut_table.h"
-
+#include "View/calibrationsmadewindow.h"
+#include "Model/inputs_file_generator.h"
 
 qt_thermo_vision_controller::qt_thermo_vision_controller():
 	the_model(new thermo_camera_model),
-	main_window(the_model->get_data_pointer())
+	main_window()
 {
 	main_window.show();
 
@@ -31,7 +32,7 @@ qt_thermo_vision_controller::qt_thermo_vision_controller():
 	connect(main_window.ui->spinBox_Gain, SIGNAL(valueChanged(int)),the_model.get() , SLOT(gain_changed_by_user(int)));
 	connect(main_window.ui->spinBox_exposureTime, SIGNAL(valueChanged(int)), the_model.get(), SLOT(exposure_changed_by_user(int)));
 	connect(main_window.ui->doubleSpinBox_emissivity, SIGNAL(valueChanged(double)), the_model.get(), SLOT (emissivity_changed_by_user(double)));
-
+	connect(main_window.ui->pushButton_showMadeCalibrations, SIGNAL(clicked()), this, SLOT(show_calibrations_made_window()));
 	the_model->post_slot_connection_initialization();
 
 
@@ -56,17 +57,18 @@ void qt_thermo_vision_controller::show_calibration_toolbar()
 
 void qt_thermo_vision_controller::start_measurement()
 {
-
-
 	ProfilePickingDialog profile_picking_dialog;
+
 	QString picked_profile = QString();
 	calibration_parameters profile_parameters;
+
 	while (picked_profile == QString())
 	{
 		if( profile_picking_dialog.exec() == QDialog::Rejected )
 		{
 			return;
 		}
+
 		profile_parameters = profile_picking_dialog.get_picked_profile_parameters();
 		picked_profile = profile_parameters.profile_name;
 		if (picked_profile == QString())
@@ -74,17 +76,22 @@ void qt_thermo_vision_controller::start_measurement()
 			QMessageBox::warning(0, "Communique", "You need to pick a profile to continue");
 		}
 	}
-
 	main_window.ui->groupBox_calibration->setVisible(false);
 	main_window.ui->Groupbox_measurement->setVisible(true);
 	show_legend_bar_label();
 
-	the_model->gain_changed_by_user(profile_parameters.Gain);
-	the_model->exposure_changed_by_user(profile_parameters.exposure_time);
+	if (profile_picking_dialog.has_reteach_network_checked())
+	{
+		the_neural_network.reteach_the_network(picked_profile);
+	}
 
-	LUT_table the_lut_table = XML_handler().get_profile_LUT_table(profile_parameters);
+//	the_neural_network.get_temperature(50, 10, 120);
+	the_model->gain_changed_by_user(main_window.ui->spinBox_Gain->value());
+	the_model->exposure_changed_by_user(main_window.ui->spinBox_exposureTime->value());
 
-	the_model->run_measurement(the_lut_table);
+//	LUT_table the_lut_table = XML_handler().get_profile_LUT_table(profile_parameters);
+
+	the_model->run_measurement(&the_neural_network);
 }
 
 void qt_thermo_vision_controller::stop_measurement()
@@ -128,7 +135,7 @@ void qt_thermo_vision_controller::create_new_profile()
 		update_profiles_list();
 }
 
-void qt_thermo_vision_controller::calibration_photo_capture_initialized()
+void qt_thermo_vision_controller::calibration_photo_capture_initialized ()
 {
 	XML_handler tmp_xml_handler;
 	cout << " main_window.ui->comboBox_profile_name->currentText(): " << main_window.ui->comboBox_profile_name->currentText().toStdString() << endl;
@@ -161,6 +168,20 @@ void qt_thermo_vision_controller::update_profiles_list()
 	hide_profile_details_labels();
 }
 
+void qt_thermo_vision_controller::show_calibrations_made_window()
+{
+	log_debug("q");
+	XML_handler the_xml_handler;
+	QString profile_name_to_request = main_window.ui->comboBox_profile_name->currentText();
+	gain_exposure_temp_map the_map = the_xml_handler.get_calibration_combinations_made(profile_name_to_request);
+	CalibrationsMadeWindow the_window(the_map);
+
+	if( the_window.exec() == QDialog::Rejected )
+	{
+		return;
+	}
+}
+
 void qt_thermo_vision_controller::show_legend_bar_label()
 {
 	QImage legend_Bar (30, 256, QImage::Format_Indexed8);
@@ -191,4 +212,5 @@ void qt_thermo_vision_controller::change_profile_details_visibility(bool show)
 	main_window.ui->label_lens_focal->setVisible(show);
 	main_window.ui->label_distance_from_object_title->setVisible(show);
 	main_window.ui->label_distance_from_object->setVisible(show);
+	main_window.ui->pushButton_showMadeCalibrations->setVisible(show);
 }

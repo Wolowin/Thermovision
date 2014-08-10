@@ -6,10 +6,13 @@
 #include <vector>
 #include "Interface/lut_table.h"
 #include <QList>
+#include "Interface/gain_exposure_temp_map.h"
+#include "Interface/calibrations_data.h"
 
 class abstract_XML_handler
 {
 public:
+
 	abstract_XML_handler() {}
 	virtual ~abstract_XML_handler() {}
 	virtual void add_profile(calibration_parameters the_parameters) = 0;
@@ -20,6 +23,7 @@ public:
 	virtual calibration_parameters get_profile_details(QString profile_name) = 0;
 	virtual void add_calibration_outcome(
 			calibration_parameters parameters, int temperature, int value) = 0;
+	virtual gain_exposure_temp_map get_calibration_combinations_made(QString profile_name) = 0;
 };
 
 #endif // ABSTRACT_XML_HANDLER_H

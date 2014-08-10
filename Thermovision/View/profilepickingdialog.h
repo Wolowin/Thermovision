@@ -16,6 +16,7 @@ public:
 	explicit ProfilePickingDialog(QWidget *parent = 0);
 	~ProfilePickingDialog();
 	calibration_parameters get_picked_profile_parameters();
+	bool has_reteach_network_checked();
 private:
 	Ui::ProfilePickingDialog *ui;
 	std::vector <calibration_parameters> parameters_vector;

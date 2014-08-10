@@ -8,7 +8,7 @@ int main()
 
 	HANDLE hSerial;
 	hSerial = CreateFile(
-		"COM10",
+		"COM3",
 		GENERIC_READ | GENERIC_WRITE,
 		0,
 		0,

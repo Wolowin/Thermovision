@@ -3,7 +3,6 @@
 
 #include "xml_handler.h"
 #include "log.h"
-
 #include <QMessageBox>
 #include <QTextStream>
 
@@ -100,40 +99,40 @@ void XML_handler::iterate_the_profile(QDomNode profile,
 	the_parameters.distance_to_obj = parameters_element.attribute(QString("Distance_to_object")).toDouble();
 	the_parameters.lens_focal = parameters_element.attribute(QString("Lens_focal")).toDouble();
 
-	QDomNodeList gains_list = profile_element.childNodes();
-
-	for (int i = 0; gains_list.at(i) != QDomNode() ; i++)
-	{
-		iterate_throught_gain(gains_list.at(i), parameters_vector, the_parameters);
-	}
-}
-
-void XML_handler::iterate_throught_gain(QDomNode gain, std::vector<calibration_parameters> &parameters_vector,
-										calibration_parameters the_parameters)
-{
-	QDomElement gain_element;
-	gain_element = gain.toElement();
-
-	QDomNodeList exposure_times_list = gain_element.childNodes();
-
-	the_parameters.Gain = gain_element.tagName().remove("Gain_").toInt();
-
-	for (int i = 0; exposure_times_list.at(i) != QDomNode() ; i++)
-	{
-		iterate_throught_exposure(exposure_times_list.at(i), parameters_vector, the_parameters);
-	}
-
-}
-
-void XML_handler::iterate_throught_exposure(QDomNode exposure_time, std::vector<calibration_parameters> &parameters_vector,
-											calibration_parameters the_parameters)
-{
-	QDomElement exposure_time_element = exposure_time.toElement();
-
-	the_parameters.exposure_time = exposure_time_element.tagName().remove("Exposure_time_").toInt();
+//	QDomNodeList gains_list = profile_element.childNodes();
 
 	parameters_vector.push_back(the_parameters);
+//	for (int i = 0; gains_list.at(i) != QDomNode() ; i++)
+//	{
+//		iterate_throught_gain(gains_list.at(i), parameters_vector, the_parameters);
+//	}
 }
+
+//void XML_handler::iterate_throught_gain(QDomNode gain, std::vector<calibration_parameters> &parameters_vector,
+//										calibration_parameters the_parameters)
+//{
+//	QDomElement gain_element;
+//	gain_element = gain.toElement();
+
+//	QDomNodeList exposure_times_list = gain_element.childNodes();
+
+//	the_parameters.Gain = gain_element.tagName().remove("Gain_").toInt();
+
+//	for (int i = 0; exposure_times_list.at(i) != QDomNode() ; i++)
+//	{
+//		iterate_throught_exposure(exposure_times_list.at(i), parameters_vector, the_parameters);
+//	}
+//}
+
+//void XML_handler::iterate_throught_exposure(QDomNode exposure_time, std::vector<calibration_parameters> &parameters_vector,
+//											calibration_parameters the_parameters)
+//{
+//	QDomElement exposure_time_element = exposure_time.toElement();
+
+//	the_parameters.exposure_time = exposure_time_element.tagName().remove("Exposure_time_").toInt();
+
+//	parameters_vector.push_back(the_parameters);
+//}
 
 std::vector<calibration_parameters> XML_handler::get_profiles_with_parameters()
 {
@@ -186,7 +185,7 @@ LUT_table XML_handler::get_profile_LUT_table(calibration_parameters profile_para
 		QString attribute_name = current_attribute.name().remove(QChar('t'));
 		QString attribute_value = current_attribute.value();
 
-		the_LUT_table.add_data_from_profile(attribute_name.toInt(), attribute_value.toDouble());
+		the_LUT_table.add_data(attribute_name.toInt(), attribute_value.toDouble());
 	}
 
 	return the_LUT_table;
@@ -216,7 +215,6 @@ void XML_handler::add_lut_attribute(int temperature, int value, QDomElement &lut
 
 void XML_handler::add_calibration_outcome(calibration_parameters parameters, int temperature, int value)
 {
-	log_debug("Siemka");
 	QDomElement root_element = profiles_DOM_document.documentElement();
 	QDomElement profile_element = root_element.firstChildElement(parameters.profile_name);
 	QString gain_string = QString("Gain_").append(QString::number(parameters.Gain));
@@ -258,7 +256,150 @@ void XML_handler::add_calibration_outcome(calibration_parameters parameters, int
 			add_lut_attribute(temperature, value, lut);
 		}
 	}
-		rewrite_file();
+	rewrite_file();
+}
+
+gain_exposure_temp_map XML_handler::get_calibration_combinations_made(QString requested_profile_name)
+{
+	gain_exposure_temp_map the_map;
+
+	QDomElement root_element = profiles_DOM_document.documentElement();
+	QDomElement profile_element = root_element.firstChildElement(requested_profile_name);
+
+	QDomNodeList profile_child_nodes = profile_element.childNodes();
+
+	for (int i = 1; profile_child_nodes.at(i) != QDomNode() ; i++)
+	{
+		QDomElement gain_element = profile_child_nodes.at(i).toElement();
+		QString gain_qstring = gain_element.tagName();
+		QDomNodeList gain_child_nodes = gain_element.childNodes();
+
+		std::map <QString, std::vector<QString> > exposure_temp_map;
+		for (int i = 0; gain_child_nodes.at(i) != QDomNode() ; i++)
+		{
+			QDomElement exposure_element = gain_child_nodes.at(i).toElement();
+
+			QString exposure_qstring = exposure_element.tagName();
+
+			QDomNamedNodeMap lut_attributes =
+					exposure_element.firstChildElement("LUT").attributes();
+
+			int temperatures_count = lut_attributes.count();
+			std::vector <QString> temperature_vector;
+			for (int i = 0 ; i < temperatures_count ; i ++)
+			{
+				QString temperature_qstring = lut_attributes.item(i).toAttr().name();
+
+				temperature_vector.push_back(temperature_qstring);
+			}
+			exposure_temp_map[exposure_qstring] = temperature_vector;
+		}
+		the_map[gain_qstring] = exposure_temp_map;
+	}
+	return the_map;
+}
+
+std::vector<calibration_data> XML_handler::get_all_calibration_data_for_profile(QString profile_name)
+{
+	gain_exposure_temp_map the_map = get_calibration_combinations_made(profile_name);
+	std::vector<calibration_data> calibration_data_vector;
+	calibration_data tmp_calibration_data;
+
+	log_debug("Getting all calibration data");
+
+	QDomElement profile_element =
+			profiles_DOM_document.firstChildElement("Profiles").firstChildElement(profile_name);
+	if (profile_element == QDomElement())
+	{
+		log_debug("Didnt find element for some reason");
+		return std::vector<calibration_data>();
+	}
+
+	calibration_data_vector = std::vector<calibration_data>();
+
+	ga_ex_te_map_iterator gains_it;
+	for (gains_it = the_map.begin() ; gains_it != the_map.end() ; gains_it++)
+	{
+		exposure_temp_map map_for_given_gain = gains_it->second;
+		ex_te_map_iterator exposures_it;
+
+		for ( exposures_it = map_for_given_gain.begin() ; exposures_it != map_for_given_gain.end() ; exposures_it++)
+		{
+			std::vector<QString> temperatures_vector = exposures_it->second;
+			std::vector<QString>::iterator temperatures_it;
+
+			for (temperatures_it = temperatures_vector.begin();
+				 temperatures_it != temperatures_vector.end();
+				 temperatures_it++)
+			{
+				int value = get_value_from_xml(profile_name, gains_it->first, exposures_it->first, (*temperatures_it));
+
+				tmp_calibration_data.exposure_time = trim_exposure_qstr_to_int(exposures_it->first);
+				tmp_calibration_data.gain = trim_gain_qstr_to_int(gains_it->first);
+				tmp_calibration_data.temperature = trim_temp_qstr_to_int(*temperatures_it);
+				tmp_calibration_data.calibration_value = value;
+
+				calibration_data_vector.push_back(tmp_calibration_data);
+			}
+		}
+	}
+	return calibration_data_vector;
+}
+
+double XML_handler::get_value_from_xml(QString profile_name,
+									QString gain_qstr, QString exposure_qstr, QString temperature_qstr)
+{
+	QDomElement profile_element =
+			profiles_DOM_document.firstChildElement("Profiles").firstChildElement(profile_name);
+
+	QString value_qstring = profile_element
+			.firstChildElement(gain_qstr)
+			.firstChildElement(exposure_qstr)
+			.firstChildElement("LUT")
+			.attribute(temperature_qstr);
+
+	return value_qstring.toDouble();
+}
+
+int XML_handler::trim_exposure_qstr_to_int(QString exposure_qstr)
+{
+	return exposure_qstr.remove("Exposure_time_").toInt();
+}
+
+int XML_handler::trim_gain_qstr_to_int(QString gain_qstr)
+{
+	return gain_qstr.remove("Gain_").toInt();
+}
+
+int XML_handler::trim_temp_qstr_to_int(QString temp_qstr)
+{
+	return temp_qstr.remove("t").toInt();
+}
+
+//void XML_handler::iterate_throught_gain(QDomNode gain, std::vector<calibration_parameters> &parameters_vector,
+//										calibration_parameters the_parameters)
+//{
+//	QDomElement gain_element;
+//	gain_element = gain.toElement();
+
+//	QDomNodeList exposure_times_list = gain_element.childNodes();
+
+//	the_parameters.Gain = gain_element.tagName().remove("Gain_").toInt();
+
+//	for (int i = 0; exposure_times_list.at(i) != QDomNode() ; i++)
+//	{
+//		iterate_throught_exposure(exposure_times_list.at(i), parameters_vector, the_parameters);
+//	}
+//}
+
+void XML_handler::iterate_throught_exposure(QDomNode exposure_time, std::vector<calibration_parameters> &parameters_vector,
+											calibration_parameters the_parameters)
+{
+	QDomElement exposure_time_element = exposure_time.toElement();
+
+	the_parameters.exposure_time = exposure_time_element.tagName().remove("Exposure_time_").toInt();
+
+	parameters_vector.push_back(the_parameters);
 }
 
 void XML_handler::rewrite_file()

@@ -108,9 +108,14 @@ int LUT_table::get_temp_from_value(double pixel_value)
 	return temperature_rounded.get(); //rounding
 }
 
-void LUT_table::add_data_from_profile(int temperature, double value)
+void LUT_table::add_data(int temperature, double value)
 {
 	data_from_profile[temperature] = value;
+}
+
+void LUT_table::clear()
+{
+
 }
 
 //TODO: REFACTOR!!!

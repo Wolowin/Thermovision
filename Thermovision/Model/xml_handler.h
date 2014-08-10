@@ -21,6 +21,8 @@ public:
 	virtual calibration_parameters get_profile_details(QString profile_name);
 	virtual void add_calibration_outcome(
 			calibration_parameters parameters, int temperature, int value);
+	virtual gain_exposure_temp_map get_calibration_combinations_made(QString requested_profile_name);
+	virtual std::vector<calibration_data> get_all_calibration_data_for_profile(QString profile_name);
 
 protected:
 	QString calibration_profiles_file_name;
@@ -29,6 +31,10 @@ private:
 	QFile file;
 	QDomDocument profiles_DOM_document;
 
+	double get_value_from_xml(QString profile_name, QString gain_qstr, QString exposure_qstr, QString temperature_qstr);
+	int trim_exposure_qstr_to_int(QString exposure_qstr);
+	int trim_gain_qstr_to_int(QString gain_qstr);
+	int trim_temp_qstr_to_int(QString temp_qstr);
 	void add_lut_attribute(int temperature, int value, QDomElement &lut);
 	void rewrite_file();
 	void iterate_the_profile(QDomNode profile, std::vector<calibration_parameters> &parameters_vector);

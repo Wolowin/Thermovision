@@ -132,6 +132,11 @@ int UEYE_UI1490SEMGL_camera::get_exposure_time_in_ms(int &exposure_time_ms)
 	return return_status;
 }
 
+bool UEYE_UI1490SEMGL_camera::is_monochrome()
+{
+	return false;
+}
+
 int UEYE_UI1490SEMGL_camera::get_image_size_x()
 {
 	return m_nSizeX;

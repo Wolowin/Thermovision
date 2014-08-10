@@ -5,6 +5,7 @@
 
 #include "../View/mainwindow.h"
 #include "../Interface/Model/abstract_thermo_camera_model.h"
+#include "Model/neural_network_wrapper.h"
 
 class qt_thermo_vision_controller: public QObject
 {
@@ -22,10 +23,12 @@ public slots:
 	void create_new_profile();
 	void calibration_photo_capture_initialized();
 	void update_profiles_list();
+	void show_calibrations_made_window();
 
 private:
 	boost::scoped_ptr<abstract_thermo_camera_model> the_model;
 	MainWindow main_window;
+	neural_network_wrapper the_neural_network;
 
 	void show_legend_bar_label();
 	void change_profile_details_visibility(bool show);

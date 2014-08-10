@@ -17,9 +17,8 @@ class MainWindow : public QMainWindow
 	Q_OBJECT
 
 public:
-	explicit MainWindow(char* ptr, QWidget *parent = 0);
+	explicit MainWindow(QWidget *parent = 0);
 	~MainWindow();
-	char* data_ptr;
 
 public slots:
 	void update(QPixmap image);

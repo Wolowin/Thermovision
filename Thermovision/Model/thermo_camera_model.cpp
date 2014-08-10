@@ -13,21 +13,45 @@
 
 #include "windows.h"
 
+#include "Model/neural_network_wrapper.h"
 
-//int thermo_camera_model::number_of_picture = 1;
+
+//TODO REMOVE
+#include <stdio.h>
+#include <sys/time.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <math.h>
+#include <time.h>
+
+typedef unsigned long long timestamp_t;
+
+	static timestamp_t
+	get_timestamp ()
+	{
+	  struct timeval now;
+	  gettimeofday (&now, NULL);
+	  return  now.tv_usec + (timestamp_t)now.tv_sec * 1000000;
+	}
+static int for_cout_generation = 0;
 
 thermo_camera_model::thermo_camera_model():
 	camera_object(camera_factory::get_camera_object()),
-	emissivity(1)
+	emissivity(1),
+	is_lut_up_to_date(false)
 {
 	camera_object->initialize_camera();
-	int image_y = camera_object->get_image_size_y();
-	int image_x = camera_object->get_image_size_x();
-	current_temperature_map.resize(image_y);
+	image_y = camera_object->get_image_size_y();
+	image_x = camera_object->get_image_size_x();
+	current_temperature_2dvector.resize(image_y);
 	for (int i = 0 ; i < image_y ; i ++)
 	{
-		current_temperature_map[i].resize(image_x);
+		current_temperature_2dvector[i].resize(image_x);
 	}
+	cout << "image_y: " << image_y<< endl;
+	cout << "image_x: " << image_x<< endl;
+	indexed_image_to_emit =QImage(image_x, image_y, QImage::Format_Indexed8);
+	indexed_image_to_emit.setColorTable(LUT_table::false_color_qcolortable);
 }
 thermo_camera_model::~thermo_camera_model()
 {
@@ -35,9 +59,9 @@ thermo_camera_model::~thermo_camera_model()
 }
 
 
-char *thermo_camera_model::get_data_pointer()
+unsigned char *thermo_camera_model::get_data_pointer()
 {
-	return camera_object->get_data_pointer();
+	return reinterpret_cast<unsigned char*> (camera_object->get_data_pointer());
 }
 
 void thermo_camera_model::create_new_profile(calibration_parameters the_parameters)
@@ -54,7 +78,7 @@ void thermo_camera_model::create_new_profile(calibration_parameters the_paramete
 	the_xml_handler->add_profile(the_calibration_parameters);
 }
 
-void thermo_camera_model::run_measurement(LUT_table the_lut_table)
+void thermo_camera_model::run_measurement(neural_network_wrapper* tmp_neural_network)
 {
 	log_debug("Starting measurement");
 
@@ -62,7 +86,7 @@ void thermo_camera_model::run_measurement(LUT_table the_lut_table)
 	connect(&timer, SIGNAL(timeout()), this, SLOT(emit_measurement_picture()));
 
 	camera_object->start_live_video();
-	used_lut_table = the_lut_table;
+	the_neural_network = tmp_neural_network;
 	qtimer_workaround();
 }
 
@@ -107,6 +131,7 @@ void thermo_camera_model::start_calibration_video()
 
 void thermo_camera_model::exposure_changed_by_user(int new_exposure)
 {
+
 	int old_exposure;
 	int return_status = camera_object->get_exposure_time_in_ms(old_exposure);
 
@@ -123,6 +148,8 @@ void thermo_camera_model::exposure_changed_by_user(int new_exposure)
 	}
 
 	camera_object->set_exposure_time_in_ms(new_exposure);
+	current_exposure = new_exposure;
+	is_lut_up_to_date = false;
 	emit change_view_exposure_value(new_exposure);
 }
 
@@ -135,6 +162,8 @@ void thermo_camera_model::gain_changed_by_user(int new_gain)
 		return;
 
 	int return_status = camera_object->set_gain_percent(new_gain);
+	current_gain = new_gain;
+	is_lut_up_to_date = false;
 	emit change_view_gain_value(new_gain);
 }
 
@@ -146,7 +175,9 @@ void thermo_camera_model::post_slot_connection_initialization()
 	camera_object->get_exposure_time_in_ms(received_camera_exposure);
 	cout << received_camera_exposure << endl;
 	emit change_view_gain_value(received_camera_Gain);
-	emit change_view_exposure_value( received_camera_exposure);
+	emit change_view_exposure_value(received_camera_exposure);
+	current_gain = received_camera_Gain;
+	current_exposure = received_camera_exposure;
 }
 
 void thermo_camera_model::emissivity_changed_by_user(double new_emissivity)
@@ -156,33 +187,50 @@ void thermo_camera_model::emissivity_changed_by_user(double new_emissivity)
 
 void thermo_camera_model::emit_measurement_picture()
 {
+	timestamp_t t0 = get_timestamp(); //
+
 	//TODO needs to be changed later to support 2 color cameras the whole function (including emissivity support)
-	char *data_pointer = get_data_pointer();
+	unsigned char *data_pointer = get_data_pointer();
 
-	int minimum_temperature = 0;
-	int maximum_temperature = 1000;
+	float emissivity_snapshot;
 
+	if (camera_object->is_monochrome()) {
+		emissivity_snapshot = emissivity;
+	} else {
+		//in case camera is not monochrome we dont divide through emissivity since we use fraction
+		emissivity_snapshot = 1;
+	}
 
-	int image_heigh = camera_object->get_image_size_y();
-	int image_width = camera_object->get_image_size_x();
+	int temperature;
+//	if (!is_lut_up_to_date)
+//	{
+//		used_lut_table.clear();
 
-	QImage indexed_image (image_width, image_heigh, QImage::Format_Indexed8);
+//		for (int i = 0 ; i < 256 ; i++)
+//		{
+//			temperature = the_neural_network->get_temperature(current_gain, current_exposure, i);
+//			used_lut_table.add_data(temperature, i);
+//		}
+//	}
+	int j;
+	float pixel_characteristic_value;
 
-	double emissivity_snapshot = emissivity;
-	for (int i = 0 ; i < image_heigh ; i ++)
+	float fraction;
+	int value_to_lut;
+	for (int i = 0 ; i < image_y ; ++i)
 	{
-		uchar *indexed_image_ptr = indexed_image.scanLine(i);
-		for (int j = 0 ; j < image_width ; j ++)
+		uchar *indexed_image_ptr = indexed_image_to_emit.scanLine(i);
+		for ( j = 0 ; j < image_x ; ++j)
 		{
-			double pixel_characteristic_value = (double) ((uchar)*data_pointer);
-			int temperature = used_lut_table.get_temp_from_value(pixel_characteristic_value / emissivity_snapshot);
-			current_temperature_map[i][j] = temperature;
-//			cout << "Dla wartosci pixel_characteristic_value: " << pixel_characteristic_value << " wartosc temperatury wynosi: " << temperature << endl;
-			double fraction = temperature - minimum_temperature;
-			fraction = fraction / (maximum_temperature - minimum_temperature);
-//			cout << " fraction: " << fraction << endl;
-			int value_to_lut = (fraction*255) +0.5;
+			pixel_characteristic_value = (float) (*data_pointer);
+			pixel_characteristic_value /= emissivity_snapshot;
+			temperature = the_neural_network->get_temperature(current_gain, current_exposure, pixel_characteristic_value);
+			current_temperature_2dvector[i][j] = temperature;
 
+
+			fraction = temperature - minimum_temperature;
+			fraction = fraction / (maximum_temperature - minimum_temperature);
+			value_to_lut = (fraction*255) +0.5;
 			if (value_to_lut > 255)
 			{
 				value_to_lut = 255;
@@ -191,13 +239,23 @@ void thermo_camera_model::emit_measurement_picture()
 			*indexed_image_ptr = value_to_lut;
 			indexed_image_ptr++;
 			data_pointer = data_pointer +4;
-//			Sleep(500);
+
+
+
 		}
 	}
+timestamp_t t1 = get_timestamp();
+	double secs = (t1 - t0) / 1000000.0L;
+	if (for_cout_generation == 1)
+	{
+		cout << "t0: "<< t0<< endl;
+		cout << "t1: "<< t1<< endl;
+		cout << "secs: "<< secs<< endl<<endl;
+		for_cout_generation =0;
+	}
+	for_cout_generation++;
 
-	indexed_image.setColorTable(LUT_table::false_color_qcolortable);
-
-	emit picture_changed(QPixmap::fromImage(indexed_image));
+	emit picture_changed(QPixmap::fromImage(indexed_image_to_emit));
 }
 
 void thermo_camera_model::qtimer_workaround()

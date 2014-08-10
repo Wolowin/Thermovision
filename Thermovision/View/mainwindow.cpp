@@ -2,10 +2,9 @@
 #include "ui_mainwindow.h"
 #include "QTimer"
 
-MainWindow::MainWindow(char *ptr, QWidget *parent) :
+MainWindow::MainWindow(QWidget *parent) :
 	QMainWindow(parent),
-	ui(new Ui::MainWindow),
-	data_ptr(ptr)
+	ui(new Ui::MainWindow)
 {
 	ui->setupUi(this);
 	ui->groupBox_calibration->setVisible(false);
@@ -20,7 +19,6 @@ MainWindow::~MainWindow()
 
 void MainWindow::update(QPixmap image)
 {
-
 	int w = ui->imageLabel->width();
 	int h = ui->imageLabel->height();
 

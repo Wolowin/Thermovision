@@ -24,7 +24,7 @@ public:
 	virtual int set_exposure_time_in_ms(int exposure_time_us);
 	virtual int get_gain_percent(int &gain_percent);
 	virtual int get_exposure_time_in_ms(int &exposure_time_us);
-
+	bool is_monochrome();
 private:
 
 	void get_connected_cameras_infos();

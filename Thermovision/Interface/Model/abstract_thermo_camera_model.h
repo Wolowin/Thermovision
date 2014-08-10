@@ -6,6 +6,9 @@
 #include "Interface/lut_table.h"
 #include <QPixmap>
 
+
+class neural_network_wrapper;
+
 class abstract_thermo_camera_model:public QObject
 {
 	Q_OBJECT
@@ -20,9 +23,9 @@ signals:
 	void change_view_exposure_value(int new_exposure);
 
 public slots:
-	virtual char* get_data_pointer() = 0;
+	virtual unsigned char *get_data_pointer() = 0;
 	virtual void create_new_profile(calibration_parameters the_parameters) = 0;
-	virtual void run_measurement(LUT_table the_lut_table) = 0;
+	virtual void run_measurement(neural_network_wrapper* the_neural_network) = 0;
 	virtual void end_measurement() = 0;
 	virtual void run_calibration(calibration_parameters the_calibration_parameters) = 0;
 	virtual void start_calibration_video() = 0;

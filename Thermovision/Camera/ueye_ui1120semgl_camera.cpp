@@ -66,7 +66,7 @@ void uEYE_UI1120SEMGL_camera::deinitialize_camera()
 
 char *uEYE_UI1120SEMGL_camera::get_data_pointer()
 {
-	return reinterpret_cast<char*>(raw_image_data_pointer);
+	return raw_image_data_pointer;
 }
 
 void uEYE_UI1120SEMGL_camera::capture_picture()
@@ -114,6 +114,11 @@ int uEYE_UI1120SEMGL_camera::get_exposure_time_in_ms(int &exposure_time_us)
 	log_debug("Getting exposure time... exposure time not supported in uEYE_UI1120SEMGL");
 	exposure_time_us = 0;
 	return -1;
+}
+
+bool uEYE_UI1120SEMGL_camera::is_monochrome()
+{
+	return true;
 }
 
 int uEYE_UI1120SEMGL_camera::get_image_size_x()

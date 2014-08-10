@@ -24,10 +24,10 @@ ProfilePickingDialog::ProfilePickingDialog(QWidget *parent) :
 		ui->profiles_table->setItem(row, 3, distance_item);
 		QTableWidgetItem *lens_item = new QTableWidgetItem(QString::number(parameters_vector[row].lens_focal));
 		ui->profiles_table->setItem(row, 4, lens_item);
-		QTableWidgetItem *gain_item = new QTableWidgetItem(QString::number(parameters_vector[row].Gain));
-		ui->profiles_table->setItem(row, 5, gain_item);
-		QTableWidgetItem *exposure_item = new QTableWidgetItem(QString::number(parameters_vector[row].exposure_time));
-		ui->profiles_table->setItem(row, 6, exposure_item);
+//		QTableWidgetItem *gain_item = new QTableWidgetItem(QString::number(parameters_vector[row].Gain));
+//		ui->profiles_table->setItem(row, 5, gain_item);
+//		QTableWidgetItem *exposure_item = new QTableWidgetItem(QString::number(parameters_vector[row].exposure_time));
+//		ui->profiles_table->setItem(row, 6, exposure_item);
 	}
 
 	ui->profiles_table->setSelectionBehavior( QAbstractItemView::SelectRows );
@@ -51,4 +51,9 @@ calibration_parameters ProfilePickingDialog::get_picked_profile_parameters()
 	}
 	cout << "current row " << row << endl;
 	return parameters_vector[row];
+}
+
+bool ProfilePickingDialog::has_reteach_network_checked()
+{
+	return ui->checkBox_ReteachNeuralNetwork->isChecked();
 }
